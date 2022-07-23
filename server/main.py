@@ -1,6 +1,7 @@
 from typing import List
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse
 
 
 def debug(obj, message = ''):
@@ -190,6 +191,10 @@ class GameManager():
 manager = ConnectionManager()
 game = GameManager()
 
+
+@app.get("/")
+def html():
+    return HTMLResponse('...')
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
