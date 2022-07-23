@@ -1,6 +1,7 @@
 from typing import List
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
 
 
 def debug(obj, message = ''):
@@ -14,6 +15,8 @@ DEBUG = True
 
 app = FastAPI()
 
+# Adding access to client.html
+app.mount("/", StaticFiles(directory="client",html = True), name="client")
 
 class ConnectionManager():
     def __init__(self):
