@@ -16,7 +16,7 @@ DEBUG = True
 app = FastAPI()
 
 # Adding access to client.html
-app.mount("/", StaticFiles(directory="client",html = True), name="client")
+app.mount("/", StaticFiles(directory="../client",html = True), name="client")
 
 class ConnectionManager():
     def __init__(self):
