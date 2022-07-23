@@ -1,1 +1,1 @@
-web: uvicorn main:app --app-dir=server
+web: uvicorn main:app --app-dir=server --port :$PORT
