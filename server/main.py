@@ -1,5 +1,6 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect 
 from typing import List
+
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 
 def debug(obj, message = ''):
@@ -17,7 +18,7 @@ app = FastAPI()
 class ConnectionManager():
     def __init__(self):
             self.active_connections: List[WebSocket] = []
-    
+
     async def connect(self, websocket: WebSocket):
         await websocket.accept()
 
@@ -25,7 +26,7 @@ class ConnectionManager():
             await websocket.close(4000)
 
             return False
-        
+
         self.active_connections.append(websocket)
 
         if len(self.active_connections) == 1:
@@ -48,7 +49,7 @@ class ConnectionManager():
 
             self.connected_player = 'o'
             return True
-    
+
     async def disconnect(self, websocket: WebSocket):
         self.active_connections.remove(websocket)
 
@@ -65,21 +66,21 @@ class ConnectionManager():
 class GameManager():
     def __init__(self):
         self.board = [
-            ['*', '*', '*'], 
+            ['*', '*', '*'],
             ['*', '*', '*'],
             ['*', '*', '*']
         ]
 
         self.players = {}
         self.is_game_started = False
-    
+
     def add_player(self, player: str, websocket: WebSocket):
         self.players[player] = websocket
-    
+
     def start(self):
         self.is_started = True
         self.current_player = 'x'
-    
+
     async def process_turn(self, turn: dict):
         '''This function handles the incoming turns and sends the corresponding messages to players.'''
 
@@ -106,13 +107,13 @@ class GameManager():
                 'message': 'You can`t move in this cell'
             })
             return
-        
+
 
         await manager.broadcast({
                 'type': 'turn',
                 'player': player,
                 'cell': cell
-            })        
+            })
 
         self.board[cell_row][cell_col] = player
 
@@ -128,22 +129,22 @@ class GameManager():
 
             self.reset()
 
-            return 
+            return
 
         self.toggle_current_player()
-    
+
     def toggle_current_player(self):
         '''Toggles the current player, which is asked to make a move.'''
 
         if self.current_player == 'x':
             self.current_player = 'o'
-        
+
         elif self.current_player == 'o':
             self.current_player = 'x'
-    
+
     def is_ready(self):
         return len (self.players.items()) == 2
-    
+
     def check_win(self):
         '''This method checks if the current player is won and, if so,
            returns cells that led to the win. Otherwise returns False.'''
@@ -158,23 +159,23 @@ class GameManager():
         for col_i, col in enumerate(columns):
             if col.count(self.current_player) == 3:
                 return (col_i, col_i + 3, col_i + 6)
-        
+
         # Check if current player won by filling first diagonal
         if all([self.board[i][i] == self.current_player for i in range(3)]):
             return (0, 4, 8)
-        
+
         # Check if current player won by filling second diagonal
         if all([self.board[i][2 - i] == self.current_player for i in range(3)]):
             return (0, 4, 6)
-        
+
         # Otherwise, current player didn`t won, so return False
         return False
 
-        
-    
+
+
     def reset(self):
         self.board = [
-            ['*', '*', '*'], 
+            ['*', '*', '*'],
             ['*', '*', '*'],
             ['*', '*', '*']
         ]
@@ -183,7 +184,7 @@ class GameManager():
         self.is_game_started = False
 
 
-            
+
 
 
 manager = ConnectionManager()
@@ -197,8 +198,8 @@ async def websocket_endpoint(websocket: WebSocket):
     # If the game is already started, then exit
     if not is_player_connected:
         return
-    
-    try: 
+
+    try:
         connected_player = manager.connected_player
         game.add_player(connected_player, websocket)
 
@@ -207,11 +208,10 @@ async def websocket_endpoint(websocket: WebSocket):
 
         while True:
             data = await websocket.receive_json()
-            
+
             if game.is_started:
                 await game.process_turn(data)
-      
+
     except WebSocketDisconnect:
         await manager.disconnect(websocket)
         game.reset()
-
