@@ -4,6 +4,7 @@ from asyncio import gather
 from typing import List
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+
 # from fastapi.staticfiles import StaticFiles
 
 
@@ -87,7 +88,7 @@ class GameManager:
         self.current_player = "x"
 
     async def process_turn(self, turn: dict):
-        """This function handles the incoming turns and sends the corresponding messages to players."""
+        """Handles the incoming turns and sends the corresponding messages to players."""
 
         debug(turn)
 
