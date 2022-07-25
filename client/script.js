@@ -6,7 +6,7 @@ function debug(obj) {
 
 const DEBUG = true;
 
-const ws = new WebSocket(`wss://rocky-hollows-30262.herokuapp.com/ws`);
+const ws = new WebSocket(`ws://rocky-hollows-30262.herokuapp.com/ws`);
 
 let client_player;
 
