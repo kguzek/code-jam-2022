@@ -18,7 +18,11 @@ CLOCK = pygame.time.Clock()
 
 
 running = True
-LOOP = asyncio.get_event_loop()
+try:
+    event_loop = asyncio.get_running_loop()
+except RuntimeError:
+    event_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(event_loop)
 
 
 def render():
@@ -41,7 +45,7 @@ def run_once(loop):
 
 
 while running:
-    run_once(LOOP)
+    run_once(event_loop)
     CLOCK.tick(30)  # FPS
 
     # Handle Pygame events
@@ -52,4 +56,4 @@ while running:
                 break
     render()
 
-LOOP.close()
+event_loop.close()
