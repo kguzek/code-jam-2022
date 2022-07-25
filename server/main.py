@@ -196,28 +196,25 @@ game = GameManager()
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
+    is_player_connected = await manager.connect(websocket)
+
+    # If the game is already started, then exit
+    if not is_player_connected:
+        return
+
     try:
-        is_player_connected = await manager.connect(websocket)
+        connected_player = manager.connected_player
+        game.add_player(connected_player, websocket)
 
-        # If the game is already started, then exit
-        if not is_player_connected:
-            return
+        if game.is_ready():
+            game.start()
 
-        try:
-            connected_player = manager.connected_player
-            game.add_player(connected_player, websocket)
+        while True:
+            data = await websocket.receive_json()
 
-            if game.is_ready():
-                game.start()
+            if game.is_started:
+                await game.process_turn(data)
 
-            while True:
-                data = await websocket.receive_json()
-
-                if game.is_started:
-                    await game.process_turn(data)
-
-        except WebSocketDisconnect:
-            await manager.disconnect(websocket)
-            game.reset()
-    except AssertionError:
-        pass
+    except WebSocketDisconnect:
+        await manager.disconnect(websocket)
+        game.reset()
