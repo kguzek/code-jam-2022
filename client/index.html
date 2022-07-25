@@ -1,45 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css" />
     <script src="script.js"></script>
-</head>
-<body>
+  </head>
+  <body>
     <table width="100%" id="main-table">
-        <tr>
-            <td>
-                <h3>WebSocket Tic Tac Toe</h3>
-                <h4>Current player: <span id="current-player"></span></h4>
-                You play by <span id="player"></span>
-                <br>
-                Info <span id="info"></span>
-            </td>
-            <td id="board-cell">
-                <div>
-                    <table id="board">
-                        <tr>
-                            <td id="0" onclick="cellClick(0)">*</td>
-                            <td id="1" onclick="cellClick(1)">*</td>
-                            <td id="2" onclick="cellClick(2)">*</td>
-                        </tr>
-                        <tr>
-                            <td id="3" onclick="cellClick(3)">*</td>
-                            <td id="4" onclick="cellClick(4)">*</td>
-                            <td id="5" onclick="cellClick(5)">*</td>
-                        </tr>
-                        <tr>
-                            <td id="6" onclick="cellClick(6)">*</td>
-                            <td id="7" onclick="cellClick(7)">*</td>
-                            <td id="8" onclick="cellClick(8)">*</td>
-                        </tr>
-                    </table>
-                </div>
-            </td>
-        </tr>
+      <tr>
+        <td>
+          <h3>WebSocket Tic Tac Toe</h3>
+          <h4>Current player: <span id="current-player"></span></h4>
+          You play by <span id="player"></span>
+          <br />
+          Info <span id="info"></span>
+        </td>
+        <td id="board-cell">
+          <div>
+            <table id="board">
+              <tr>
+                <td id="0" onclick="cellClick(0)">*</td>
+                <td id="1" onclick="cellClick(1)">*</td>
+                <td id="2" onclick="cellClick(2)">*</td>
+              </tr>
+              <tr>
+                <td id="3" onclick="cellClick(3)">*</td>
+                <td id="4" onclick="cellClick(4)">*</td>
+                <td id="5" onclick="cellClick(5)">*</td>
+              </tr>
+              <tr>
+                <td id="6" onclick="cellClick(6)">*</td>
+                <td id="7" onclick="cellClick(7)">*</td>
+                <td id="8" onclick="cellClick(8)">*</td>
+              </tr>
+            </table>
+          </div>
+        </td>
+      </tr>
     </table>
-</body>
+  </body>
 </html>
