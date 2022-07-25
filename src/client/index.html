@@ -9,28 +9,70 @@
 <body>
     <h1>Amazing websocket ui</h1>
     <p>Who needs css am I right</p>
+
+    <p>Your name is: <span id="displayName">None</span></p>
+    <p>Your room is: <span id="displayRoom"></span></p>
+
     <hr>
+
+    <input type="text" id="name" placeholder="Username">
+    <input type="button" value="Connect" onclick="connect()">
+    <br>
     <input type="text" id="roomid" placeholder="roomid">
     <input type="button" value="Transfer to room" onclick="transfer()">
+
+    <hr>
+
+    <h2>Clients in room:</h2>
+    <div id="clients">
+
+    </div>
 </body>
 
 <script>
-const ws = new WebSocket("ws://localhost:8000/ws")
+let ws = null
 
-ws.onmessage = event => {
-    let data = JSON.parse(event.data);
+function connect() {
+    let name = document.getElementById("name").value
+    if (name != "") { ws = new WebSocket("ws://localhost:8000/ws?name="+name) }
+    else { ws = new WebSocket("ws://localhost:8000/ws") }
 
-    switch(data.type) {
-        case "transferred":
-            room = data.roomid
-            // Do something with the room transfer
-            console.log("New room id: " + room)
-            break
+    ws.onmessage = event => {
+        let data = JSON.parse(event.data);
 
-        default:
-            console.log("Unknown message type: " + data.type)
-            console.log(event)
+        switch(data.type) {
+            case "transferred":
+                room = data.roomid
+                // Do something with the room transfer
+                console.log("New room id: " + room)
+                document.getElementById("displayRoom").innerHTML = room
+
+                out = ""
+
+                data.clients.forEach(client => {
+                    out += "<p>" + client + "</p>"
+                });
+
+                document.getElementById("clients").innerHTML = ""
+                document.getElementById("clients").innerHTML = out
+                break
+            
+            case "new_connection":
+                document.getElementById("clients").innerHTML += "<p>" + data.name + "</p>"
+                break
+
+            // TODO: Need to also make this in python
+            case "client_disconnected":
+                break
+
+            default:
+                console.log("Unknown message type: " + data.type)
+                console.log(event)
+        }
     }
+
+    console.log("Connected as " + name)
+    document.getElementById("displayName").innerHTML = name
 }
 
 function transfer() {

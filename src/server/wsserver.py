@@ -17,7 +17,7 @@ class Client:
     """
 
     def __init__(self, websocket: WebSocket, room_id: int = None):
-        self.name = websocket.get("name")
+        self.name = websocket.query_params.get("name")
         self.room_id = room_id
         self.socket = websocket
 
@@ -89,6 +89,7 @@ class ConnectionManager:
     async def connect(self, websocket: WebSocket) -> Client:
         """Connects the websocket to the server."""
         client = Client(websocket, None)
+        print(websocket.query_params)
         await client.accept()
         self.connections.append(client)
         return client
@@ -100,7 +101,13 @@ class ConnectionManager:
         except Exception:
             pass
 
-        self.rooms[self.connected_rooms[client.id]]
+        if client.room_id:
+            old_room = self.get_room(client.room_id)
+            old_room.remove_client(client)
+
+            if len(old_room.clients) == 0:
+                self.rooms.remove(old_room)
+
         self.connections.remove(client)
 
     async def transfer_client(self, client: Client, room: Room):
