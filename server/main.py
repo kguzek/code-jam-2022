@@ -2,7 +2,7 @@ from asyncio import gather
 from typing import List
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.staticfiles import StaticFiles
+# from fastapi.staticfiles import StaticFiles
 
 
 def debug(*args):
@@ -17,7 +17,7 @@ DEBUG = True
 app = FastAPI()
 
 # Adding access to client.html
-app.mount("/", StaticFiles(directory="../client", html=True), name="client")
+# app.mount("/", StaticFiles(directory="../client", html=True), name="client")
 
 
 class ConnectionManager:
@@ -98,15 +98,14 @@ class GameManager:
             )
             return
 
-        cell_row = cell // 3
-        cell_col = cell % 3
+        cell_row, cell_col = divmod(cell, 3)
 
         if self.board[cell_row][cell_col] != "*":
             await manager.broadcast(
                 {
                     "type": "denied",
                     "player": player,
-                    "message": "You can`t move in this cell",
+                    "message": "You can't move in this cell",
                 }
             )
             return

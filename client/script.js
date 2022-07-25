@@ -5,8 +5,8 @@ function debug(obj) {
 }
 
 const DEBUG = true;
-
 const USE_LOCAL_SERVER = false;
+
 const WS_HOST = USE_LOCAL_SERVER
   ? "localhost:8000"
   : "rocky-hollows-30262.herokuapp.com";
