@@ -6,7 +6,11 @@ function debug(obj) {
 
 const DEBUG = true;
 
-const ws = new WebSocket(`ws://localhost:8000/ws`);
+const USE_LOCAL_SERVER = false;
+const WS_HOST = USE_LOCAL_SERVER
+  ? "localhost:8000"
+  : "rocky-hollows-30262.herokuapp.com";
+const ws = new WebSocket(`ws://${WS_HOST}/ws`);
 
 let client_player;
 
