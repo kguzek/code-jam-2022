@@ -1,3 +1,5 @@
+"""Class definitions."""
+
 import re
 from typing import List
 
@@ -30,14 +32,14 @@ class Client(WebSocket):
 
         self.accept()
 
-    def send(self, data: dict):
+    async def send(self, message: dict):
         """
         Sends json data to the client.
 
         Args:
-            data: The data to send to the client. Should be a dictionary
+            message: The data to send to the client. Should be a dictionary
         """
-        self.send_json(data)
+        self.send_json(message)
 
 
 class Room:
@@ -47,8 +49,8 @@ class Room:
     Made to shut flake8 up
     """
 
-    def __init__(self, id: int) -> None:
-        self.id = id
+    def __init__(self, room_id: int) -> None:
+        self.room_id = room_id
         self.clients: List[Client] = []
 
     def add_client(self, client: Client):
@@ -69,4 +71,4 @@ class ConnectionManager:
 
     async def connect(self, websocket: WebSocket):
         """Connects the websocket to the server."""
-        pass
+        self.connections.append(websocket)
