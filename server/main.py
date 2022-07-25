@@ -1,3 +1,5 @@
+"""Entry point for the application websocket server."""
+
 from asyncio import gather
 from typing import List
 
