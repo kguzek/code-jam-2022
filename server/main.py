@@ -194,7 +194,7 @@ manager = ConnectionManager()
 game = GameManager()
 
 
-@app.websocket("/wss")
+@app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     is_player_connected = await manager.connect(websocket)
 
