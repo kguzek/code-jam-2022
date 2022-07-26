@@ -5,10 +5,12 @@ import pygame
 import websockets
 
 from modules import Colour, Font, GameStage, SCREEN_DIMS
-from modules.gui import Button, Menu
+from modules.gui import Button, Menu, TextInput, BaseElement
 
 pygame.init()
+pygame.key.set_repeat(500, 30)
 FONT = Font(pygame.font.SysFont)
+BaseElement.DEFAULT_FONT = FONT.nimbus_sans
 
 SCREEN = pygame.display.set_mode(SCREEN_DIMS)
 
@@ -24,14 +26,25 @@ except RuntimeError:
     asyncio.set_event_loop(event_loop)
 
 
-btn = Button("First button", FONT.nimbus_sans, (0.5, 0.5))
-btn2 = Button("Second button", FONT.nimbus_sans, (0.5, 5 / 8))
+txtbox = TextInput("Input", (0.5, 5 / 14), FONT.consolas, FONT.nimbus_sans_sm)
+btn1 = Button("Button One", (0.5, 7 / 14))
+btn2 = Button("Button Two", (0.5, 9 / 14))
+
+
+def tick():
+    """Performs logic on the game window."""
+
+    mouse_pos = pygame.mouse.get_pos()
+    # Determine which buttons were pressed
+    clicked = pygame.mouse.get_pressed(num_buttons=3)
+    for elem in Menu.all_elements:
+        elem.check_click(mouse_pos, clicked)
 
 
 def render():
     """Rerenders the game window."""
     # Fill with white
-    SCREEN.fill(Colour.DARK0.value)
+    SCREEN.fill(Colour.GREY2.value)
 
     def render_fps():
         """Blit the current FPS to the screen."""
@@ -44,8 +57,8 @@ def render():
         SCREEN.blit(fps_surface, (0, 0))
 
     def render_server_connector():
-        for button in Menu.buttons:
-            button.draw(SCREEN)
+        for elem in Menu.all_elements:
+            elem.draw(SCREEN)
 
     render_fps()
 
@@ -73,15 +86,17 @@ while game_stage != GameStage.ABORTED:
     CLOCK.tick(FRAMERATE)
 
     # Handle Pygame events
-    for event in pygame.event.get():
+    events = pygame.event.get()
+    for event in events:
         match event.type:
             case pygame.QUIT:
                 game_stage = GameStage.ABORTED
-    mouse_pos = pygame.mouse.get_pos()
-    # Determine which buttons were pressed
-    clicked = pygame.mouse.get_pressed(num_buttons=3)
-    for button in Menu.buttons:
-        button.check_click(mouse_pos, clicked)
+            case pygame.KEYDOWN:
+                for text_input in Menu.text_inputs:
+                    if not text_input.selected:
+                        continue
+                    text_input.keydown(event)
+    tick()
     render()
 
 event_loop.close()
