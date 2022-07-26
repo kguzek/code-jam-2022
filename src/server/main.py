@@ -3,7 +3,7 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 
-from server.wsserver import ConnectionManager
+from server.wsserver import ConnectionManager, Message, EventType
 
 app = FastAPI()
 conn_manager = ConnectionManager()
@@ -30,16 +30,8 @@ async def websocket_endpoint(websocket: WebSocket):
 
         room = conn_manager.get_room(room_id)
 
-        await room.broadcast({"type": "new_connection", "name": client.name})
-
+        await room.broadcast(Message(EventType.CONNECT, client=client.serialised))
         await conn_manager.transfer_client(client, room)
-        await client.send_data(
-            {
-                "type": "transferred",
-                "roomid": room.room_id,
-                "clients": [i.name for i in room.clients],
-            }
-        )
 
     try:
         while True:
@@ -57,4 +49,3 @@ async def websocket_endpoint(websocket: WebSocket):
 
     except WebSocketDisconnect:
         await conn_manager.disconnect(client)
-        # TODO: alert other clients in the room that the client has disconnected

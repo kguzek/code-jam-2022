@@ -1,9 +1,32 @@
 """Entry point for the server application."""
 
+from asyncio import gather
 import re
-from typing import List
+from enum import Enum
+from uuid import uuid4
 
 from fastapi import WebSocket
+
+
+class EventType(Enum):
+    """Enum containing all message event types."""
+
+    CONNECT = "new_connection"
+    TRANSFER = "transferred"
+    DISCONNECT = "client_disconnected"
+
+
+class Message:
+    """Message class to be used for server-client communication."""
+
+    def __init__(self, msg_type: EventType, **kwargs):
+        self.type = msg_type.value
+        self.options = kwargs
+
+    @property
+    def serialised(self) -> dict:
+        """Gets the message instance serialised as a dictionary."""
+        return {"type": self.type, **self.options}
 
 
 class Client:
@@ -22,6 +45,7 @@ class Client:
         self.name = websocket.query_params.get("name")
         self.room_id = room_id
         self.socket = websocket
+        self.uuid = str(uuid4())
 
         if self.name:
             # Checks to make sure the name is only using
@@ -33,14 +57,14 @@ class Client:
         else:
             self.name = "Anonymous"
 
-    async def send_data(self, data: dict):
+    async def send_message(self, message: Message):
         """
-        Sends json data to the client.
+        Sends a message to the client.
 
         Args:
-            data: The data to send to the client. Should be a dictionary
+            message: The Message object to send.
         """
-        await self.socket.send_json(data)
+        await self.socket.send_json(message.serialised)
 
     async def accept(self) -> None:
         """Accepts the socket connection"""
@@ -49,6 +73,15 @@ class Client:
     async def recieve_data(self) -> dict:
         """Recieves data send by the client"""
         return await self.socket.receive_json()
+
+    async def close(self) -> None:
+        """Closes the conection to the server."""
+        print("Closed client", self.serialised)
+
+    @property
+    def serialised(self) -> dict:
+        """Gets a serialised version of the client instance."""
+        return {"uuid": self.uuid, "name": self.name}
 
 
 class Room:
@@ -61,20 +94,22 @@ class Room:
 
     def __init__(self, room_id: int) -> None:
         self.room_id = room_id
-        self.clients: List[Client] = []
+        self.clients: list[Client] = []
 
     def add_client(self, client: Client):
         """Adds the client to the room."""
         self.clients.append(client)
 
-    def remove_client(self, client: Client):
+    async def remove_client(self, client: Client):
         """Removes the client from the room."""
         self.clients.remove(client)
+        await self.broadcast(Message(EventType.DISCONNECT, uuid=client.uuid))
 
-    async def broadcast(self, data: dict):
-        """Sends the data to all connected clients."""
-        for client in self.clients:
-            await client.send_data(data)
+    async def broadcast(self, message: Message):
+        """Sends the message to all connected clients."""
+        # Send all messages concurrently
+        coroutines = (client.send_message(message) for client in self.clients)
+        await gather(*coroutines)
 
 
 class ConnectionManager:
@@ -85,8 +120,8 @@ class ConnectionManager:
     """
 
     def __init__(self) -> None:
-        self.connections: List[WebSocket] = []
-        self.rooms: List[Room] = []
+        self.connections: list[WebSocket] = []
+        self.rooms: list[Room] = []
 
     async def connect(self, websocket: WebSocket) -> Client:
         """Connects the websocket to the server."""
@@ -96,32 +131,26 @@ class ConnectionManager:
         self.connections.append(client)
         return client
 
+    async def remove_client_from_room(self, client) -> None:
+        """Removes the client from its current room."""
+        if not client.room_id:
+            return
+        room = self.get_room(client.room_id)
+        await room.remove_client(client)
+
+        if len(room.clients) == 0:
+            self.rooms.remove(room)
+
     async def disconnect(self, client: Client):
         """Disconnects the client from the server."""
-        try:
-            await client.close()
-        except AttributeError:
-            pass
-
-        if client.room_id:
-            old_room = self.get_room(client.room_id)
-            old_room.remove_client(client)
-
-            if len(old_room.clients) == 0:
-                self.rooms.remove(old_room)
+        await client.close()
 
         self.connections.remove(client)
+        await self.remove_client_from_room(client)
 
     async def transfer_client(self, client: Client, room: Room):
-        """
-        Transfers the client to the room.
-        """
-        if client.room_id:
-            old_room = self.get_room(client.room_id)
-            old_room.remove_client(client)
-
-            if len(old_room.clients) == 0:
-                self.rooms.remove(old_room)
+        """Transfers the client to the room."""
+        await self.remove_client_from_room(client)
 
         if room not in self.rooms:
             self.rooms.append(room)
@@ -129,8 +158,13 @@ class ConnectionManager:
         room.add_client(client)
         client.room_id = room.room_id
 
+        clients = [client.serialised for client in room.clients]
+        await client.send_message(
+            Message(EventType.TRANSFER, roomid=room.room_id, clients=clients)
+        )
+
     def get_room(self, room_id: int) -> Room:
-        """Get's the room with the id or creates one."""
+        """Gets the room with the id or creates one."""
         for room in self.rooms:
             if room.room_id == room_id:
                 return room

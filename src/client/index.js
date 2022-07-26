@@ -1,21 +1,22 @@
-const NAME_ELEM = document.getElementById("name");
+const INPUT_NAME_ELEM = document.getElementById("name");
+const INPUT_ROOM_ELEM = document.getElementById("roomid");
 const DISPLAY_NAME_ELEM = document.getElementById("displayName");
 const DISPLAY_ROOM_ELEM = document.getElementById("displayRoom");
-const ROOM_ID_ELEM = document.getElementById("roomid");
 const CLIENTS_ELEM = document.getElementById("clients");
 
 const WEBSOCKET_URL = "ws://localhost:8000/ws";
 
 let ws;
 
-function addClientElem(clientText) {
+function addClientElem(client) {
   const elem = document.createElement("li");
-  elem.textContent = clientText;
+  elem.textContent = client.name;
+  elem.id = `client-${client.uuid}`;
   CLIENTS_ELEM.appendChild(elem);
 }
 
 function connect() {
-  const name = NAME_ELEM.value;
+  const name = INPUT_NAME_ELEM.value;
   ws = new WebSocket(WEBSOCKET_URL + (name ? `?name=${name}` : ""));
 
   ws.onmessage = (event) => {
@@ -25,20 +26,23 @@ function connect() {
       case "transferred":
         room = data.roomid;
         // Do something with the room transfer
-        console.log("New room id: " + room);
         DISPLAY_ROOM_ELEM.textContent = room;
 
         CLIENTS_ELEM.innerHTML = "";
-        console.log(data.clients);
         data.clients.forEach(addClientElem);
         break;
 
       case "new_connection":
-        addClientElem(data.name);
+        addClientElem(data.client);
         break;
 
-      // TODO: Need to also make this in python
       case "client_disconnected":
+        const child = document.getElementById(`client-${data.uuid}`);
+        try {
+          CLIENTS_ELEM.removeChild(child);
+        } catch (error) {
+          console.error("Could not remove client from room.", data, error);
+        }
         break;
 
       default:
@@ -52,7 +56,7 @@ function connect() {
 }
 
 function transfer() {
-  id = ROOM_ID_ELEM.value;
+  id = INPUT_ROOM_ELEM.value;
   if (!ws) return;
   ws.send(
     JSON.stringify({
