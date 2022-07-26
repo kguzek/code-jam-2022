@@ -9,22 +9,31 @@ DEFAULT_DIMS = (200, 50)
 class BaseElement:
     def __init__(
         self,
-        pos: tuple[int, int],
-        dims: tuple[int, int],
+        label: str,
+        font: pygame.font.Font,
+        pos: tuple[float, float],
+        dims: tuple[int, int] = DEFAULT_DIMS,
+        container: list = None,
     ) -> None:
-        self.pos = pos
+        self.label = label
+        self.text = font.render(label, True, Colour.WHITE.value)
+        self.text_width = self.text.get_width()
+        self.text_height = self.text.get_height()
+
         self.dimensions = dims
-        self.pos = pos
+        self.pos = tuple(self.get_coordinate(Axis(i), pos[i]) for i in range(2))
+
+        self.active = False
+        self.is_pressed = False
+        if container is None:
+            raise ValueError("No element container specified.")
+        container.append(self)
 
     def get_coordinate(self, axis: Axis, fraction: float):
         """Gets the coordinate if we want the element to be the given fraction away from the
         screen's edge.
         """
         return round((SCREEN_DIMS[axis.value] - self.dimensions[axis.value]) * fraction)
-
-    def get_pos(self, fractions: tuple[float, float]):
-        """Gets the position in both axes according to `BaseElement.get_coordinate()`."""
-        return tuple(self.get_coordinate(Axis(i), fractions[i]) for i in range(2))
 
     def centre(self, axis: Axis = Axis.BOTH) -> None:
         """Sets the element's position to the centre of the screen on the given axis."""
@@ -47,25 +56,31 @@ class BaseElement:
             and y_pos <= target_pos[1] <= y_pos + height
         )
 
+    def check_click(
+        self, mouse_pos: tuple[int, int], mouse_btns: tuple[bool, bool, bool]
+    ):
+        self.active = self.check_collision(mouse_pos)
+        is_pressed = self.active and mouse_btns[0]
+        if is_pressed != self.is_pressed:
+            # The state was changed
+            if is_pressed:
+                # User just clicked mouse button
+                self.on_mouse_down()
+            else:
+                # User just released mouse button
+                self.on_mouse_up()
+        self.is_pressed = is_pressed
+
+    def on_mouse_down(self) -> None:
+        """Called once when the user clicks the element."""
+
+    def on_mouse_up(self) -> None:
+        """Called once when the user releases the element."""
+
 
 class Button(BaseElement):
-    def __init__(
-        self,
-        label: str,
-        font: pygame.font.Font,
-        pos_fractions: tuple[float, float],
-        dims: tuple[int, int] = DEFAULT_DIMS,
-    ) -> None:
-        self.label = label
-        self.text = font.render(label, True, Colour.WHITE.value)
-        self.dimensions = dims
-        self.text_width = self.text.get_width()
-        self.text_height = self.text.get_height()
-        self.active = False
-        self.is_pressed = False
-        Menu.buttons.append(self)
-        pos = self.get_pos(pos_fractions)
-        super().__init__(pos, dims)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, container=Menu.buttons, **kwargs)
 
     def draw(self, screen: pygame.Surface):
         """Blits the button to the game window."""
@@ -81,29 +96,6 @@ class Button(BaseElement):
             y_pos + (height - self.text_height) // 2,
         )
         screen.blit(self.text, text_pos)
-
-    def check_click(
-        self, mouse_pos: tuple[int, int], clicked_buttons: tuple[bool, bool, bool]
-    ) -> None:
-        self.active = self.check_collision(mouse_pos)
-        is_pressed = self.active and clicked_buttons[0]
-        if is_pressed != self.is_pressed:
-            # The state was changed
-            if is_pressed:
-                # User just clicked button
-                self.on_mouse_down()
-            else:
-                # User just released mouse button
-                self.on_mouse_up()
-        self.is_pressed = is_pressed
-
-    def on_mouse_down(self) -> None:
-        """Called once when the user clicks the button."""
-        # print("Clicked button", self.label)
-
-    def on_mouse_up(self) -> None:
-        """Called once when the user releases the button."""
-        # print("Released button", self.label)
 
 
 class Menu:
