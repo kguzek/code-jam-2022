@@ -1,19 +1,21 @@
 """Websocket definitions."""
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
 
 from server.wsserver import ConnectionManager, Message, EventType
 
 app = FastAPI()
 conn_manager = ConnectionManager()
 
+app.mount("/client", StaticFiles(directory="client", html=True), name="client")
+
 
 @app.get("/")
 async def root():
-    """Returns static file web client."""
-    with open("./client/index.html", "r", encoding="UTF-8") as file:
-        return HTMLResponse(file.read())
+    """Redirects to the `/client` subpath containing the client static page content."""
+    return RedirectResponse(url="/client")
 
 
 @app.websocket("/ws")
