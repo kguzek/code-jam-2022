@@ -1,3 +1,5 @@
+"""Entry point for the server application."""
+
 import re
 from typing import List
 
@@ -13,7 +15,7 @@ class Client:
     Args:
         WebSocket: The WebSocket object for the client.
         name: The name of the client. Alphanumeric 3-20 characters. Default: Anonymous
-        room_id: ID of the client 
+        room_id: ID of the client
     """
 
     def __init__(self, websocket: WebSocket, room_id: int = None):
@@ -30,8 +32,6 @@ class Client:
                 self.name = "Anonymous"
         else:
             self.name = "Anonymous"
-
-        self.id = "Id will go here"
 
     async def send_data(self, data: dict):
         """
@@ -50,6 +50,7 @@ class Client:
         """Recieves data send by the client"""
         return await self.socket.receive_json()
 
+
 class Room:
     """
     Main class for a game room.
@@ -58,19 +59,20 @@ class Room:
     Also has an id which will probably be a uuid.
     """
 
-    def __init__(self, id: int) -> None:
-        self.id = id
+    def __init__(self, room_id: int) -> None:
+        self.room_id = room_id
         self.clients: List[Client] = []
 
     def add_client(self, client: Client):
-        """Adds the client to the room"""
+        """Adds the client to the room."""
         self.clients.append(client)
 
     def remove_client(self, client: Client):
-        """Removes the client from the room"""
+        """Removes the client from the room."""
         self.clients.remove(client)
 
     async def broadcast(self, data: dict):
+        """Sends the data to all connected clients."""
         for client in self.clients:
             await client.send_data(data)
 
@@ -98,7 +100,7 @@ class ConnectionManager:
         """Disconnects the client from the server."""
         try:
             await client.close()
-        except Exception:
+        except AttributeError:
             pass
 
         if client.room_id:
@@ -125,19 +127,18 @@ class ConnectionManager:
             self.rooms.append(room)
 
         room.add_client(client)
-        client.room_id = room.id
+        client.room_id = room.room_id
 
-    def get_room(self, id: int) -> Room:
+    def get_room(self, room_id: int) -> Room:
         """Get's the room with the id or creates one."""
         for room in self.rooms:
-            if room.id == id:
+            if room.room_id == room_id:
                 return room
-
-        return Room(id)
+        return Room(room_id)
 
     def __str__(self) -> str:
-        output = "Rooms\n"
+        output = "Rooms:\n"
         for room in self.rooms:
-            output += str(room.id) + ": " + ", ".join([i.name for i in room.clients]) + "\n"
+            output += f"{room.room_id}: {', '.join(i.name for i in room.clients)}\n"
 
         return output
