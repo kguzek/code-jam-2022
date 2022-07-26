@@ -4,8 +4,8 @@ import asyncio
 import pygame
 import websockets
 
-from modules import Colour, Font, GameStage, SCREEN_DIMS
-from modules.gui import Button, Menu, TextInput, BaseElement
+from modules import Colour, Font, GameStage, SCREEN_DIMS, event_loop, backend
+from modules.gui import BaseElement, Button, Menu, TextInput, Dropdown
 
 pygame.init()
 pygame.key.set_repeat(500, 30)
@@ -19,16 +19,28 @@ FRAMERATE = 30  # FPS
 
 game_stage: GameStage = GameStage.CONNECT_TO_SERVER
 
-try:
-    event_loop = asyncio.get_running_loop()
-except RuntimeError:
-    event_loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(event_loop)
+
+dropdown = Dropdown(
+    "Select server",
+    (0.5, 3 / 14),
+    icon_font=FONT.reemkufiregular,
+    options=["Remote server", "Locally-hosted server"],
+)
+txtbox = TextInput(
+    "Server URL",
+    "E.g. localhost:8000",
+    (0.5, 5 / 14),
+    FONT.consolas,
+    FONT.nimbus_sans_sm,
+)
+btn_test_connection = Button("Test connection", (0.5, 7 / 14))
+btn_confirm = Button("Confirm settings", (0.5, 9 / 14))
 
 
-txtbox = TextInput("Input", (0.5, 5 / 14), FONT.consolas, FONT.nimbus_sans_sm)
-btn1 = Button("Button One", (0.5, 7 / 14))
-btn2 = Button("Button Two", (0.5, 9 / 14))
+@btn_test_connection.on_mouse_down
+async def make_test_connection():
+    success = await backend.test_connection("https://localhost:8000")
+    print("Connection success:", success)
 
 
 def tick():
@@ -69,7 +81,7 @@ def render():
     pygame.display.update()
 
 
-def run_once(loop):
+def run_once(loop: asyncio.AbstractEventLoop):
     """Executes one task in the event loop's coroutine stack."""
     loop.call_soon(loop.stop)
     loop.run_forever()
@@ -81,22 +93,28 @@ def connect_to_server():
 
 connect_to_server()
 
-while game_stage != GameStage.ABORTED:
-    run_once(event_loop)
-    CLOCK.tick(FRAMERATE)
+try:
+    while game_stage != GameStage.ABORTED:
+        run_once(event_loop)
+        CLOCK.tick(FRAMERATE)
 
-    # Handle Pygame events
-    events = pygame.event.get()
-    for event in events:
-        match event.type:
-            case pygame.QUIT:
-                game_stage = GameStage.ABORTED
-            case pygame.KEYDOWN:
-                for text_input in Menu.text_inputs:
-                    if not text_input.selected:
-                        continue
-                    text_input.keydown(event)
-    tick()
-    render()
+        # Handle Pygame events
+        events = pygame.event.get()
+        for event in events:
+            match event.type:
+                case pygame.QUIT:
+                    game_stage = GameStage.ABORTED
+                case pygame.KEYDOWN:
+                    for text_input in Menu.text_inputs:
+                        if not text_input.selected:
+                            continue
+                        text_input.keydown(event)
+        tick()
+        render()
+except KeyboardInterrupt:
+    pass
 
+# Clean up event loop and close HTTP session
+event_loop.create_task(backend.session.close())
+event_loop.run_until_complete(asyncio.gather(*asyncio.all_tasks(event_loop)))
 event_loop.close()

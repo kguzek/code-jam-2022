@@ -1,13 +1,16 @@
 """Module containing UI elements to be used in the game menus."""
 
 from time import time
+from typing import Coroutine
 import pygame
-from modules import Colour, Axis, SCREEN_DIMS
+from modules import Colour, Axis, SCREEN_DIMS, event_loop
 
 DEFAULT_DIMS = (200, 50)
 
 
 class BaseElement:
+    DEFAULT_FONT: pygame.font.Font = None
+
     def __init__(
         self,
         label: str,
@@ -29,10 +32,22 @@ class BaseElement:
 
         self.is_hovered = False
         self.is_pressed = False
+
+        self.click_callbacks: dict[str, list[function]] = {"down": [], "up": []}
+
         if container is None:
             raise ValueError("No element container specified.")
         container.append(self)
         Menu.all_elements.append(self)
+
+    def blit_text(self, screen: pygame.Surface, width_offset: int = 0) -> None:
+        """Blits the element's label to the centre of its area."""
+        x_pos, y_pos, width, height = self.pos + self.dimensions
+        text_pos = (
+            x_pos + (width - self.text_width + width_offset) // 2,
+            y_pos + (height - self.text_height) // 2,
+        )
+        screen.blit(self.text, text_pos)
 
     def draw(self, screen: pygame.Surface) -> None:
         """Blits the element to the game window."""
@@ -75,17 +90,37 @@ class BaseElement:
             # The state was changed
             if is_pressed:
                 # User just clicked mouse button
-                self.on_mouse_down()
+                self._on_mouse_down()
             else:
                 # User just released mouse button
-                self.on_mouse_up()
+                self._on_mouse_up()
         self.is_pressed = is_pressed
 
-    def on_mouse_down(self) -> None:
+    def _on_mouse_down(self) -> None:
         """Called once when the user clicks the element."""
+        self.call_callbacks("down")
 
-    def on_mouse_up(self) -> None:
+    def _on_mouse_up(self) -> None:
         """Called once when the user releases the element."""
+        self.call_callbacks("up")
+
+    def call_callbacks(self, callback_type) -> None:
+        """Calls all the given callbacks, even if they are coroutines."""
+        for callback in self.click_callbacks[callback_type]:
+            coro = callback()
+            if not isinstance(coro, Coroutine):
+                continue
+            event_loop.create_task(coro)
+
+    def on_mouse_down(self, callback):
+        """Can be used to decorate functions that will be called when the element is clicked."""
+        self.click_callbacks["down"].append(callback)
+        return callback
+
+    def on_mouse_up(self, callback):
+        """Can be used to decorate functions that will be called when the element is released."""
+        self.click_callbacks["up"].append(callback)
+        return callback
 
 
 class Button(BaseElement):
@@ -100,15 +135,6 @@ class Button(BaseElement):
         pygame.draw.rect(screen, bg_colour.value, dimensions)
         self.blit_text(screen)
         super().draw(screen)
-
-    def blit_text(self, screen: pygame.Surface) -> None:
-        """Blits the element's label to the centre of its area."""
-        x_pos, y_pos, width, height = self.pos + self.dimensions
-        text_pos = (
-            x_pos + (width - self.text_width) // 2,
-            y_pos + (height - self.text_height) // 2,
-        )
-        screen.blit(self.text, text_pos)
 
 
 class SelectableElement(BaseElement):
@@ -126,20 +152,29 @@ class SelectableElement(BaseElement):
             self.on_hover_change(is_hovered)
         super().check_click(mouse_pos, mouse_btns)
 
-    def on_mouse_down(self) -> None:
+    def _on_mouse_down(self) -> None:
         self.selected = True
+        return super()._on_mouse_down()
 
-    def on_hover_change(self) -> None:
-        """Called once when the selection state changes."""
+    def on_hover_change(self, is_hovered: bool) -> None:
+        """Called once when the user cursor either enters or leaves the element boundaries."""
+        is_hovered = is_hovered  # To remove 'unused variable' warning
 
 
 class TextInput(SelectableElement):
     CURSOR_WIDTH = 3  # px
 
     def __init__(
-        self, label, pos, font: pygame.font.Font, label_font: pygame.font.Font, **kwargs
+        self,
+        label: str,
+        placeholder: str,
+        pos: tuple[float, float],
+        font: pygame.font.Font,
+        label_font: pygame.font.Font,
+        **kwargs
     ) -> None:
         self.value = ""
+        self.placeholder = placeholder
         self.last_blink = time()
         self.text_font = font
         self.show_cursor = False
@@ -157,16 +192,15 @@ class TextInput(SelectableElement):
         """Blits the input box to the game window."""
         dimensions = self.pos + self.dimensions
         # Element background
-        bg_colour = (
-            Colour.WHITE
-            if self.selected
-            else Colour.LIGHTBLUE
-            if self.is_hovered
-            else Colour.GREY7
-        )
+        bg_colour = Colour.WHITE if self.selected else Colour.GREY7
         pygame.draw.rect(screen, bg_colour.value, dimensions)
         screen.blit(self.text, tuple(dim + 5 for dim in self.pos))
-        value_text = self.text_font.render(self.value, True, Colour.BLACK.value)
+        text, colour = (
+            (self.value, Colour.BLACK)
+            if self.value or self.selected
+            else (self.placeholder, Colour.GREY3)
+        )
+        value_text = self.text_font.render(text, True, colour.value)
 
         # Initialise text surface container
         text_width = value_text.get_width()
@@ -198,6 +232,11 @@ class TextInput(SelectableElement):
         screen.blit(text_area, (self.pos[0] + 5, self.pos[1] + 25))
         super().draw(screen)
 
+    def _on_mouse_down(self) -> None:
+        self.last_blink = time()
+        self.show_cursor = True
+        return super()._on_mouse_down()
+
     def draw_cursor(self, surface: pygame.Surface, txt_wdth: int, txt_hgt: int) -> None:
         """Draws the blinking cursor."""
         now = time()
@@ -213,11 +252,9 @@ class TextInput(SelectableElement):
         pygame.draw.rect(surface, Colour.BLACK.value, cursor_dims)
 
     def keydown(self, event: pygame.event.Event) -> None:
-        print(event)
         if event.key == 8:
             # Backspace
             if event.mod & pygame.KMOD_LCTRL:
-                print("here")
                 # Ctrl+Backspace: remove last word
                 self.value = " ".join(self.value.rstrip().split(" ")[:-1])
                 return
@@ -237,24 +274,43 @@ class TextInput(SelectableElement):
 
 
 class Dropdown(SelectableElement):
-    def __init__(self, *args, options=[], **kwargs):
+    def __init__(self, *args, icon_font, options=[], **kwargs):
         self.selected_option = None
         self.options = options
-        super().__init__(*args, container=Menu.dropdowns, **kwargs)
+        self.icon = icon_font.render("V", True, Colour.WHITE.value)
+        self.icon_width = self.icon.get_width()
+        self.icon_height = self.icon.get_height()
+        super().__init__(
+            *args,
+            font_colour=Colour.BLACK,
+            dims=(DEFAULT_DIMS[0], DEFAULT_DIMS[1] * 2 // 3),
+            container=Menu.dropdowns,
+            **kwargs
+        )
 
     def draw(self, screen: pygame.Surface) -> None:
         """Blits the dropdown box to the game window."""
         dimensions = self.pos + self.dimensions
         # Element background
-        bg_colour = (
-            Colour.WHITE
-            if self.selected
-            else Colour.LIGHTBLUE
-            if self.is_hovered
-            else Colour.GREY7
-        )
+        bg_colour = Colour.LIGHTBLUE if self.is_hovered else Colour.GREY7
         pygame.draw.rect(screen, bg_colour.value, dimensions)
+        self.blit_text(screen, -self.dimensions[1])
+        icon_dims = (self.dimensions[1],) * 2
+        icon_surf = pygame.Surface(icon_dims)
+        icon_surf.fill(Colour.GREY4.value)
+        pygame.draw.rect(icon_surf, Colour.BLACK.value, (0, 0) + icon_dims, 2)
+        self.blit_icon(icon_surf, icon_dims)
+        screen.blit(
+            icon_surf,
+            (self.pos[0] + self.dimensions[0] - self.dimensions[1], self.pos[1]),
+        )
         super().draw(screen)
+
+    def blit_icon(self, surface: pygame.Surface, dims: tuple[int, int]) -> None:
+        surface.blit(
+            self.icon,
+            ((dims[0] - self.icon_width) // 2, (dims[1] - self.icon_height) // 2 + 1),
+        )
 
 
 class Option(BaseElement):
@@ -267,8 +323,9 @@ class Option(BaseElement):
         """Blits the dropdown option to the game window."""
         super().draw(screen)
 
-    def on_mouse_down(self) -> None:
+    def _on_mouse_down(self) -> None:
         self.parent.selected_option = self.value
+        return super()._on_mouse_down()
 
 
 class Menu:

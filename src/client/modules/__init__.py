@@ -1,5 +1,6 @@
 """Package containing all client modules as well as miscellaneous constant definitions."""
 
+import asyncio
 from enum import Enum
 from typing import Callable
 from pygame.font import Font
@@ -7,6 +8,13 @@ from pygame.font import Font
 SCREEN_WIDTH = 640
 SCREEN_HEIGHT = 480
 SCREEN_DIMS = (SCREEN_WIDTH, SCREEN_HEIGHT)
+
+
+try:
+    event_loop = asyncio.get_running_loop()
+except RuntimeError:
+    event_loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(event_loop)
 
 
 class Colour(Enum):
@@ -27,10 +35,11 @@ class Colour(Enum):
 class Font:  # pylint:disable=too-few-public-methods
     """Custom fonts used in the client application."""
 
-    def __init__(self, font_initialiser: Callable[[str, int], Font]):
-        self.nimbus_sans = font_initialiser("Nimbus Sans L", 24)
-        self.nimbus_sans_sm = font_initialiser("Nimbus Sans L", 21)
-        self.consolas = font_initialiser("Consolas", 17)
+    def __init__(self, font_init: Callable[[str, int], Font]):
+        self.nimbus_sans = font_init("Nimbus Sans L", 24)
+        self.nimbus_sans_sm = font_init("Nimbus Sans L", 21)
+        self.consolas = font_init("Consolas", 17)
+        self.reemkufiregular = font_init("reemkufiregular", 13)
 
 
 class GameStage(Enum):
