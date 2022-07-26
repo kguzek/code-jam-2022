@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse
 
 from server.wsserver import ConnectionManager, Message, EventType
 
@@ -16,6 +16,12 @@ app.mount("/client", StaticFiles(directory="client", html=True), name="client")
 async def root():
     """Redirects to the `/client` subpath containing the client static page content."""
     return RedirectResponse(url="/client")
+
+
+@app.get("/test-connection")
+async def test():
+    """Endpoint to validate if the server is running."""
+    return JSONResponse({"server-running": True})
 
 
 @app.websocket("/ws")
