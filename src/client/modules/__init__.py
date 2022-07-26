@@ -57,3 +57,10 @@ class Axis(Enum):
     HORIZONTAL = 0
     VERTICAL = 1
     BOTH = 2
+
+
+class GameInfo:
+    """Information pertaining to the current game process."""
+
+    current_stage: GameStage = GameStage.CONNECT_TO_SERVER
+    last_valid_server = None

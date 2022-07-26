@@ -1,10 +1,10 @@
 """The entry point for the client-side application."""
 
 import asyncio
+import aiohttp
 import pygame
-import websockets
 
-from modules import Colour, Font, GameStage, SCREEN_DIMS, event_loop, backend
+from modules import backend, SCREEN_DIMS, event_loop, Colour, Font, GameStage, GameInfo
 from modules.gui import BaseElement, Button, Menu, TextInput, Dropdown
 
 pygame.init()
@@ -15,18 +15,17 @@ BaseElement.DEFAULT_FONT = FONT.nimbus_sans
 SCREEN = pygame.display.set_mode(SCREEN_DIMS)
 
 CLOCK = pygame.time.Clock()
-FRAMERATE = 30  # FPS
-
-game_stage: GameStage = GameStage.CONNECT_TO_SERVER
+FRAMERATE = 60  # FPS
 
 
+# REGION Register menu elements
 dropdown = Dropdown(
     "Select server",
     (0.5, 3 / 14),
     icon_font=FONT.reemkufiregular,
     options=["Remote server", "Locally-hosted server"],
 )
-txtbox = TextInput(
+ipt_server_url = TextInput(
     "Server URL",
     "E.g. localhost:8000",
     (0.5, 5 / 14),
@@ -34,13 +33,46 @@ txtbox = TextInput(
     FONT.nimbus_sans_sm,
 )
 btn_test_connection = Button("Test connection", (0.5, 7 / 14))
-btn_confirm = Button("Confirm settings", (0.5, 9 / 14))
+btn_confirm = Button("Confirm settings", (0.5, 9 / 14), disabled=True)
+# ENDREGION
 
-
-@btn_test_connection.on_mouse_down
+# REGION Register element events
+@btn_test_connection.on_mouse("down")
 async def make_test_connection():
-    success = await backend.test_connection("https://localhost:8000")
-    print("Connection success:", success)
+    old_label = btn_test_connection.label
+    btn_test_connection.label = "Testing..."
+    btn_test_connection.toggle_disabled_state()
+    ipt_server_url.toggle_disabled_state()
+    try:
+        success = await backend.test_connection(ipt_server_url.value)
+    except aiohttp.InvalidURL as invalid_url_error:
+        btn_test_connection.error("Invalid URL:", str(invalid_url_error))
+        return
+    else:
+        print("Connection success:", success)
+    finally:
+        btn_test_connection.label = old_label
+        btn_test_connection.toggle_disabled_state()
+        ipt_server_url.toggle_disabled_state()
+
+
+@btn_confirm.on_mouse("down")
+async def confirm_settings():
+    GameInfo.current_stage = GameStage.GAME_IN_PROGRESS
+
+
+@ipt_server_url.on_select_change
+def handle_value_change():
+    if ipt_server_url.selected:
+        return
+    if ipt_server_url.value == GameInfo.last_valid_server:
+        return
+    GameInfo.last_valid_server = None
+    if not btn_confirm.disabled:
+        btn_confirm.toggle_disabled_state()
+
+
+# ENDREGION
 
 
 def tick():
@@ -74,7 +106,7 @@ def render():
 
     render_fps()
 
-    match game_stage:
+    match GameInfo.current_stage:
         case GameStage.CONNECT_TO_SERVER:
             render_server_connector()
 
@@ -87,14 +119,9 @@ def run_once(loop: asyncio.AbstractEventLoop):
     loop.run_forever()
 
 
-def connect_to_server():
-    pass
-
-
-connect_to_server()
-
+# Main game loop
 try:
-    while game_stage != GameStage.ABORTED:
+    while GameInfo.current_stage != GameStage.ABORTED:
         run_once(event_loop)
         CLOCK.tick(FRAMERATE)
 
@@ -103,7 +130,7 @@ try:
         for event in events:
             match event.type:
                 case pygame.QUIT:
-                    game_stage = GameStage.ABORTED
+                    GameInfo.current_stage = GameStage.ABORTED
                 case pygame.KEYDOWN:
                     for text_input in Menu.text_inputs:
                         if not text_input.selected:

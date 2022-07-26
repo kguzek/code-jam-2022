@@ -1,11 +1,23 @@
 """Module containing UI elements to be used in the game menus."""
 
 from time import time
-from typing import Coroutine
+from typing import Callable, Coroutine, Literal, Text
+from numpy import isin
 import pygame
 from modules import Colour, Axis, SCREEN_DIMS, event_loop
 
 DEFAULT_DIMS = (200, 50)
+
+
+def call_callbacks(callbacks: list[Callable[[], Coroutine | None]]):
+    """Calls each callback in the list, scheduling any returned coroutines as tasks
+    to be awaited in the running game event loop.
+    """
+    for callback in callbacks:
+        coro = callback()
+        if not isinstance(coro, Coroutine):
+            continue
+        event_loop.create_task(coro)
 
 
 class BaseElement:
@@ -19,29 +31,40 @@ class BaseElement:
         font_colour: Colour = Colour.WHITE,
         dims: tuple[int, int] = DEFAULT_DIMS,
         container: list = None,
+        disabled: bool = False,
     ) -> None:
         self.label = label
         if font is None:
             font = self.DEFAULT_FONT
-        self.text = font.render(label, True, font_colour.value)
-        self.text_width = self.text.get_width()
-        self.text_height = self.text.get_height()
+        self.font = font
+        self.font_colour: tuple[int, int, int] = font_colour.value
+        self.render_text()
 
         self.dimensions = dims
         self.pos = tuple(self.get_coordinate(Axis(i), pos[i]) for i in range(2))
 
         self.is_hovered = False
         self.is_pressed = False
+        self.disabled = disabled
 
-        self.click_callbacks: dict[str, list[function]] = {"down": [], "up": []}
+        self._click_callbacks: dict[str, list[Callable[[], Coroutine | None]]] = {
+            "down": [],
+            "up": [],
+        }
 
         if container is None:
             raise ValueError("No element container specified.")
         container.append(self)
         Menu.all_elements.append(self)
 
+    def render_text(self) -> None:
+        self.text = self.font.render(self.label, True, self.font_colour)
+        self.text_width = self.text.get_width()
+        self.text_height = self.text.get_height()
+
     def blit_text(self, screen: pygame.Surface, width_offset: int = 0) -> None:
         """Blits the element's label to the centre of its area."""
+        self.render_text()
         x_pos, y_pos, width, height = self.pos + self.dimensions
         text_pos = (
             x_pos + (width - self.text_width + width_offset) // 2,
@@ -84,7 +107,9 @@ class BaseElement:
     def check_click(
         self, mouse_pos: tuple[int, int], mouse_btns: tuple[bool, bool, bool]
     ):
-        self.is_hovered = self.check_collision(mouse_pos)
+        is_hovered = self.check_collision(mouse_pos)
+        if is_hovered != self.is_hovered:
+            self.on_hover_change(is_hovered)
         is_pressed = self.is_hovered and mouse_btns[0]
         if is_pressed != self.is_pressed:
             # The state was changed
@@ -96,31 +121,47 @@ class BaseElement:
                 self._on_mouse_up()
         self.is_pressed = is_pressed
 
+    def on_hover_change(self, is_hovered: bool) -> None:
+        """Called once when the user cursor either enters or leaves the element boundaries."""
+        cursor = (
+            pygame.SYSTEM_CURSOR_NO
+            if is_hovered and self.disabled
+            else pygame.SYSTEM_CURSOR_ARROW
+        )
+        pygame.mouse.set_cursor(*pygame.Cursor(cursor))
+        self.is_hovered = is_hovered
+
+    def toggle_disabled_state(self) -> None:
+        self.disabled = not self.disabled
+        cursor = (
+            pygame.SYSTEM_CURSOR_NO
+            if self.is_hovered and self.disabled
+            else pygame.SYSTEM_CURSOR_ARROW
+        )
+        pygame.mouse.set_cursor(*pygame.Cursor(cursor))
+
     def _on_mouse_down(self) -> None:
         """Called once when the user clicks the element."""
-        self.call_callbacks("down")
+        self._call_callbacks("down")
 
     def _on_mouse_up(self) -> None:
         """Called once when the user releases the element."""
-        self.call_callbacks("up")
+        self._call_callbacks("up")
 
-    def call_callbacks(self, callback_type) -> None:
+    def _call_callbacks(self, callback_type) -> None:
         """Calls all the given callbacks, even if they are coroutines."""
-        for callback in self.click_callbacks[callback_type]:
-            coro = callback()
-            if not isinstance(coro, Coroutine):
-                continue
-            event_loop.create_task(coro)
+        if self.disabled:
+            # Don't fire click events if the button is disabled
+            return
+        call_callbacks(self._click_callbacks[callback_type])
 
-    def on_mouse_down(self, callback):
+    def on_mouse(self, action: Literal["down", "up"]):
         """Can be used to decorate functions that will be called when the element is clicked."""
-        self.click_callbacks["down"].append(callback)
-        return callback
 
-    def on_mouse_up(self, callback):
-        """Can be used to decorate functions that will be called when the element is released."""
-        self.click_callbacks["up"].append(callback)
-        return callback
+        def wrapper(callback: Callable[[], Coroutine | None]):
+            self._click_callbacks[action].append(callback)
+
+        return wrapper
 
 
 class Button(BaseElement):
@@ -131,34 +172,46 @@ class Button(BaseElement):
         """Blits the button to the game window."""
         dimensions = self.pos + self.dimensions
         # Element background
-        bg_colour = Colour.GREY5 if self.is_hovered else Colour.GREY4
+        bg_colour = (
+            Colour.GREY2
+            if self.disabled
+            else Colour.GREY5
+            if self.is_hovered
+            else Colour.GREY4
+        )
         pygame.draw.rect(screen, bg_colour.value, dimensions)
         self.blit_text(screen)
         super().draw(screen)
+
+    def error(self, *message: tuple[str]) -> None:
+        print("ERROR:", *message)
 
 
 class SelectableElement(BaseElement):
     def __init__(self, *args, **kwargs) -> None:
         self.selected = False
+        self._on_select_callbacks: list[Callable[[], Coroutine | None]] = []
         super().__init__(*args, **kwargs)
 
     def check_click(
         self, mouse_pos: tuple[int, int], mouse_btns: tuple[bool, bool, bool]
     ):
-        is_hovered = self.check_collision(mouse_pos)
-        if mouse_btns[0] and not is_hovered:
-            self.selected = False
-        if is_hovered != self.is_hovered:
-            self.on_hover_change(is_hovered)
         super().check_click(mouse_pos, mouse_btns)
+        if mouse_btns[0] and not self.is_hovered and self.selected:
+            self._set_selected(False)
+
+    def _set_selected(self, selected: bool) -> None:
+        self.selected = selected
+        call_callbacks(self._on_select_callbacks)
 
     def _on_mouse_down(self) -> None:
-        self.selected = True
+        if not self.disabled and not self.selected:
+            self._set_selected(True)
         return super()._on_mouse_down()
 
-    def on_hover_change(self, is_hovered: bool) -> None:
-        """Called once when the user cursor either enters or leaves the element boundaries."""
-        is_hovered = is_hovered  # To remove 'unused variable' warning
+    def on_select_change(self, callback: Callable[[], Coroutine | None]):
+        """Can be used to decorate functions that will be called on select or deselect."""
+        self._on_select_callbacks.append(callback)
 
 
 class TextInput(SelectableElement):
@@ -192,13 +245,19 @@ class TextInput(SelectableElement):
         """Blits the input box to the game window."""
         dimensions = self.pos + self.dimensions
         # Element background
-        bg_colour = Colour.WHITE if self.selected else Colour.GREY7
+        bg_colour = (
+            Colour.GREY5
+            if self.disabled
+            else Colour.WHITE
+            if self.selected
+            else Colour.GREY7
+        )
         pygame.draw.rect(screen, bg_colour.value, dimensions)
         screen.blit(self.text, tuple(dim + 5 for dim in self.pos))
         text, colour = (
             (self.value, Colour.BLACK)
             if self.value or self.selected
-            else (self.placeholder, Colour.GREY3)
+            else (self.placeholder, Colour.GREY5)
         )
         value_text = self.text_font.render(text, True, colour.value)
 
@@ -232,11 +291,6 @@ class TextInput(SelectableElement):
         screen.blit(text_area, (self.pos[0] + 5, self.pos[1] + 25))
         super().draw(screen)
 
-    def _on_mouse_down(self) -> None:
-        self.last_blink = time()
-        self.show_cursor = True
-        return super()._on_mouse_down()
-
     def draw_cursor(self, surface: pygame.Surface, txt_wdth: int, txt_hgt: int) -> None:
         """Draws the blinking cursor."""
         now = time()
@@ -251,6 +305,11 @@ class TextInput(SelectableElement):
         cursor_dims = (txt_wdth, 0, self.CURSOR_WIDTH, txt_hgt)
         pygame.draw.rect(surface, Colour.BLACK.value, cursor_dims)
 
+    def _on_mouse_down(self) -> None:
+        self.last_blink = time()
+        self.show_cursor = True
+        return super()._on_mouse_down()
+
     def keydown(self, event: pygame.event.Event) -> None:
         if event.key == 8:
             # Backspace
@@ -262,15 +321,15 @@ class TextInput(SelectableElement):
             return
         if event.key in (pygame.key.key_code(key) for key in ("return", "escape")):
             # Return or escape
-            self.selected = False
+            self._set_selected(False)
             return
         self.value += event.unicode
 
     def on_hover_change(self, is_hovered: bool) -> None:
-        cursor = (
-            pygame.SYSTEM_CURSOR_IBEAM if is_hovered else pygame.SYSTEM_CURSOR_ARROW
-        )
-        pygame.mouse.set_cursor(*pygame.Cursor(cursor))
+        super().on_hover_change(is_hovered)
+        if not is_hovered or self.disabled:
+            return
+        pygame.mouse.set_cursor(*pygame.Cursor(pygame.SYSTEM_CURSOR_IBEAM))
 
 
 class Dropdown(SelectableElement):
