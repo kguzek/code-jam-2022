@@ -20,6 +20,9 @@ except RuntimeError:
 class Colour(Enum):
     """Custom colours used in the client application."""
 
+    RED = (255, 0, 0)
+    GREEN = (0, 128, 0)
+    BLUE = (0, 0, 255)
     BLACK = (0,) * 3
     GREY1 = (16,) * 3
     GREY2 = (32,) * 3
@@ -35,11 +38,18 @@ class Colour(Enum):
 class Font:  # pylint:disable=too-few-public-methods
     """Custom fonts used in the client application."""
 
-    def __init__(self, font_init: Callable[[str, int], Font]):
-        self.nimbus_sans = font_init("Nimbus Sans L", 24)
-        self.nimbus_sans_sm = font_init("Nimbus Sans L", 21)
-        self.consolas = font_init("Consolas", 17)
-        self.reemkufiregular = font_init("reemkufiregular", 13)
+    def __init__(
+        self,
+        font_from_name: Callable[[str, int], Font],
+        font_from_file: Callable[[str, int], Font],
+    ):
+        self.nimbus_sans_sm = font_from_name("Nimbus Sans L", 21)
+        self.nimbus_sans = font_from_name("Nimbus Sans L", 24)
+        self.nimbus_sans_xl = font_from_name("Nimbus Sans L", 34)
+        self.consolas = font_from_name("Consolas", 17)
+        self.reemkufiregular = font_from_name("reemkufiregular", 13)
+
+        self.seguisym = font_from_file("data/seguisym.ttf", 23)
 
 
 class GameStage(Enum):

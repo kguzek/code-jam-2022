@@ -6,7 +6,7 @@ from numpy import isin
 import pygame
 from modules import Colour, Axis, SCREEN_DIMS, event_loop
 
-DEFAULT_DIMS = (200, 50)
+DEFAULT_DIMS = (300, 50)
 
 
 def call_callbacks(callbacks: list[Callable[[], Coroutine | None]]):
@@ -183,15 +183,37 @@ class Button(BaseElement):
         self.blit_text(screen)
         super().draw(screen)
 
-    def error(self, *message: tuple[str]) -> None:
-        print("ERROR:", *message)
-
 
 class SelectableElement(BaseElement):
     def __init__(self, *args, **kwargs) -> None:
         self.selected = False
         self._on_select_callbacks: list[Callable[[], Coroutine | None]] = []
         super().__init__(*args, **kwargs)
+
+    def blit_detail(
+        self,
+        dest: pygame.Surface,
+        src: pygame.Surface,
+        colour: Colour | None = None,
+        outline_colour: Colour | None = None,
+    ) -> None:
+        dims = (self.dimensions[1],) * 2
+        surf = pygame.Surface(dims, pygame.SRCALPHA, 32)
+        if colour:
+            surf.fill(colour.value)
+        if outline_colour:
+            pygame.draw.rect(surf, outline_colour.value, (0, 0) + dims, 2)
+        surf.blit(
+            src,
+            (
+                (dims[0] - src.get_width()) // 2,
+                (dims[1] - src.get_height()) // 2 + 1,
+            ),
+        )
+        dest.blit(
+            surf,
+            (self.pos[0] + self.dimensions[0] - self.dimensions[1], self.pos[1]),
+        )
 
     def check_click(
         self, mouse_pos: tuple[int, int], mouse_btns: tuple[bool, bool, bool]
@@ -224,6 +246,7 @@ class TextInput(SelectableElement):
         pos: tuple[float, float],
         font: pygame.font.Font,
         label_font: pygame.font.Font,
+        detail_font: pygame.font.Font,
         **kwargs
     ) -> None:
         self.value = ""
@@ -232,6 +255,10 @@ class TextInput(SelectableElement):
         self.text_font = font
         self.show_cursor = False
 
+        self.success = None
+
+        self.check = detail_font.render("✓", True, Colour.GREEN.value)
+        self.exclamation = detail_font.render("!", True, Colour.RED.value)
         super().__init__(
             label,
             pos,
@@ -289,6 +316,9 @@ class TextInput(SelectableElement):
         text_area.blit(text_surf, (0, 0), crop_area)
 
         screen.blit(text_area, (self.pos[0] + 5, self.pos[1] + 25))
+
+        if self.success is not None:
+            self.blit_detail(screen, self.check if self.success else self.exclamation)
         super().draw(screen)
 
     def draw_cursor(self, surface: pygame.Surface, txt_wdth: int, txt_hgt: int) -> None:
@@ -308,6 +338,7 @@ class TextInput(SelectableElement):
     def _on_mouse_down(self) -> None:
         self.last_blink = time()
         self.show_cursor = True
+        self.success = None
         return super()._on_mouse_down()
 
     def keydown(self, event: pygame.event.Event) -> None:
@@ -333,12 +364,10 @@ class TextInput(SelectableElement):
 
 
 class Dropdown(SelectableElement):
-    def __init__(self, *args, icon_font, options=[], **kwargs):
+    def __init__(self, *args, icon_font: pygame.font.Font, options=[], **kwargs):
         self.selected_option = None
         self.options = options
         self.icon = icon_font.render("V", True, Colour.WHITE.value)
-        self.icon_width = self.icon.get_width()
-        self.icon_height = self.icon.get_height()
         super().__init__(
             *args,
             font_colour=Colour.BLACK,
@@ -354,22 +383,13 @@ class Dropdown(SelectableElement):
         bg_colour = Colour.LIGHTBLUE if self.is_hovered else Colour.GREY7
         pygame.draw.rect(screen, bg_colour.value, dimensions)
         self.blit_text(screen, -self.dimensions[1])
-        icon_dims = (self.dimensions[1],) * 2
-        icon_surf = pygame.Surface(icon_dims)
-        icon_surf.fill(Colour.GREY4.value)
-        pygame.draw.rect(icon_surf, Colour.BLACK.value, (0, 0) + icon_dims, 2)
-        self.blit_icon(icon_surf, icon_dims)
-        screen.blit(
-            icon_surf,
-            (self.pos[0] + self.dimensions[0] - self.dimensions[1], self.pos[1]),
+        self.blit_detail(
+            screen,
+            self.icon,
+            Colour.GREY3 if self.is_hovered else Colour.GREY4,
+            Colour.BLACK,
         )
         super().draw(screen)
-
-    def blit_icon(self, surface: pygame.Surface, dims: tuple[int, int]) -> None:
-        surface.blit(
-            self.icon,
-            ((dims[0] - self.icon_width) // 2, (dims[1] - self.icon_height) // 2 + 1),
-        )
 
 
 class Option(BaseElement):

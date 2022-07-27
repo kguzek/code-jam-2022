@@ -9,7 +9,7 @@ from modules.gui import BaseElement, Button, Menu, TextInput, Dropdown
 
 pygame.init()
 pygame.key.set_repeat(500, 30)
-FONT = Font(pygame.font.SysFont)
+FONT = Font(pygame.font.SysFont, pygame.font.Font)
 BaseElement.DEFAULT_FONT = FONT.nimbus_sans
 
 SCREEN = pygame.display.set_mode(SCREEN_DIMS)
@@ -31,6 +31,7 @@ ipt_server_url = TextInput(
     (0.5, 5 / 14),
     FONT.consolas,
     FONT.nimbus_sans_sm,
+    FONT.seguisym,
 )
 btn_test_connection = Button("Test connection", (0.5, 7 / 14))
 btn_confirm = Button("Confirm settings", (0.5, 9 / 14), disabled=True)
@@ -45,25 +46,37 @@ async def make_test_connection():
     ipt_server_url.toggle_disabled_state()
     try:
         success = await backend.test_connection(ipt_server_url.value)
-    except aiohttp.InvalidURL as invalid_url_error:
-        btn_test_connection.error("Invalid URL:", str(invalid_url_error))
+    except aiohttp.InvalidURL:
+        ipt_server_url.success = False
         return
     else:
-        print("Connection success:", success)
+        ipt_server_url.success = success
+        if not success:
+            return
+        GameInfo.last_valid_server = ipt_server_url.value
+        if btn_confirm.disabled:
+            btn_confirm.toggle_disabled_state()
     finally:
         btn_test_connection.label = old_label
-        btn_test_connection.toggle_disabled_state()
         ipt_server_url.toggle_disabled_state()
 
 
 @btn_confirm.on_mouse("down")
 async def confirm_settings():
+    old_label = btn_confirm.label
+    btn_confirm.toggle_disabled_state()
+    btn_confirm.label = "Connecting to the server..."
+    await backend.connect_to_websocket(GameInfo.last_valid_server)
     GameInfo.current_stage = GameStage.GAME_IN_PROGRESS
+    btn_confirm.toggle_disabled_state()
+    btn_confirm.label = old_label
 
 
 @ipt_server_url.on_select_change
 def handle_value_change():
     if ipt_server_url.selected:
+        if btn_test_connection.disabled:
+            btn_test_connection.toggle_disabled_state()
         return
     if ipt_server_url.value == GameInfo.last_valid_server:
         return
@@ -142,6 +155,5 @@ except KeyboardInterrupt:
     pass
 
 # Clean up event loop and close HTTP session
-event_loop.create_task(backend.session.close())
-event_loop.run_until_complete(asyncio.gather(*asyncio.all_tasks(event_loop)))
+event_loop.run_until_complete(backend.session.close())
 event_loop.close()
