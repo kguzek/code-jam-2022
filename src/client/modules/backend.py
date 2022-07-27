@@ -33,6 +33,11 @@ async def connect_to_websocket(url) -> None:
         raise ValueError("Invalid URL.")
     url = get_url(url, "ws", scheme="ws")
     async with ws_client.connect(url) as websocket:
-        while True:
-            data = await websocket.recv()
+        print("Connected!")
+        func = websocket.data_received
+
+        def callback(data: bytes):
             print(data)
+            func(data)
+
+        websocket.data_received = callback
