@@ -1,2 +1,8 @@
 #!/bin/bash
-uvicorn server.main:app --host 0.0.0.0 --port 8000
+if [[ $1 == "--reload" ]]; then
+  echo "Started server in development mode!"
+  uvicorn server.main:app --host localhost --port 8000 --reload
+else
+  echo "Started server in production mode!"
+  uvicorn server.main:app --host localhost --port 8000
+fi

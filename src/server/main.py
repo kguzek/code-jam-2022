@@ -43,17 +43,12 @@ async def websocket_endpoint(websocket: WebSocket):
 
     try:
         while True:
-            data = await client.recieve_data()
-            print(data)
+            data = await client.socket.receive_json()
+            print("Received data:", data)
 
-            match data["type"]:
+            match data.get("type"):
                 case "transfer":
                     await transfer_client(data)
-
-                case _:
-                    pass
-
-            print(conn_manager)
 
     except WebSocketDisconnect:
         await conn_manager.disconnect(client)

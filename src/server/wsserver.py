@@ -16,7 +16,7 @@ class EventType(Enum):
     DISCONNECT = "client_disconnected"
 
 
-class Message:
+class Message:  # pylint:disable=too-few-public-methods
     """Message class to be used for server-client communication."""
 
     def __init__(self, msg_type: EventType, **kwargs):
@@ -65,14 +65,6 @@ class Client:
             message: The Message object to send.
         """
         await self.socket.send_json(message.serialised)
-
-    async def accept(self) -> None:
-        """Accepts the socket connection"""
-        await self.socket.accept()
-
-    async def recieve_data(self) -> dict:
-        """Recieves data send by the client"""
-        return await self.socket.receive_json()
 
     async def close(self) -> None:
         """Closes the conection to the server."""
@@ -127,7 +119,7 @@ class ConnectionManager:
         """Connects the websocket to the server."""
         client = Client(websocket, None)
         print(websocket.query_params)
-        await client.accept()
+        await client.socket.accept()
         self.connections.append(client)
         return client
 
