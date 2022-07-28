@@ -1,2 +1,3 @@
 fastapi ~= 0.79
 uvicorn
+websockets
