@@ -1,13 +1,33 @@
 """Module containing code pertaining to connecting with the server."""
 
 import aiohttp
-from websockets import client as ws_client
-
-session = aiohttp.ClientSession()
+from websockets import client as ws_client, uri as ws_uri
 
 
-def get_url(url: str, path: str, scheme: str = "http") -> str:
-    """Trims the URL, adds the given scheme as needed, and appends the given path."""
+class WebSession(aiohttp.ClientSession):
+    """Child class of `aiohttp.ClientSession` that additionally defines a global storage for
+    a websocket connection."""
+
+    def __init__(self):
+        self.socket_connection: ws_client.ClientConnection = None
+        super().__init__()
+
+    def set_socket_connection(self, connection: ws_client.ClientConnection) -> None:
+        """Initialises the websocket connection."""
+        self.socket_connection = connection
+
+
+session = WebSession()
+
+
+async def close():
+    """Closes the web session."""
+    await session.close()
+
+
+def get_url(url: str, path: str, scheme: str = "http") -> str | ws_uri.WebSocketURI:
+    """Trims the URL, adds the given scheme as needed, and appends the given path. If the
+    URL scheme is `ws`, returns a `WebSocketURI` object."""
     url = f"{url.rstrip('/')}/{path}"
     # Add HTTP scheme if not present
     if "://" not in url:
@@ -27,17 +47,21 @@ async def test_connection(url: str):
         return False
 
 
-async def connect_to_websocket(url) -> None:
+# def connect_to_websocket(url) -> None:
+#     """Connects to the server websocket."""
+#     if not url:
+#         raise ValueError("Invalid URL.")
+#     url = uri.parse_uri(get_url(url, "ws", scheme="ws"))
+#     session.set_socket_connection(ws_client.ClientConnection(url))
+#     connection_request = session.socket_connection.connect()
+#     session.socket_connection.send_request(connection_request)
+#     print(url)
+
+
+async def connect_to_websocket(url):
     """Connects to the server websocket."""
     if not url:
         raise ValueError("Invalid URL.")
-    url = get_url(url, "ws", scheme="ws")
+    url: ws_uri.WebSocketURI = get_url(url, "ws", scheme="ws")
     async with ws_client.connect(url) as websocket:
-        print("Connected!")
-        func = websocket.data_received
-
-        def callback(data: bytes):
-            print(data)
-            func(data)
-
-        websocket.data_received = callback
+        await websocket.recv()
