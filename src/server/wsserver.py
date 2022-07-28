@@ -1,7 +1,7 @@
 """Entry point for the server application."""
 
-from asyncio import gather
 import re
+from asyncio import gather
 from enum import Enum
 from uuid import uuid4
 
