@@ -14,25 +14,18 @@
         <h1>Websocket UI</h1>
 
         <div class="container">
-          <p><b>Username:</b> <span id="displayName">None</span></p>
-          <p><b>Current room ID:</b> <span id="displayRoom">None</span></p>
+          <p><b>Connected to room:</b> <span id="displayRoom">None</span></p>
         </div>
 
         <hr />
         <form class="container">
           <div>
-            <label>
-              Username
-              <input type="text" id="name" placeholder="E.g. Jeff" />
-            </label>
-            <input type="button" value="Connect" onclick="connect()" />
+            <input type="number" id="roomid" placeholder="Room ID" />
+            <input type="button" value="Join" onclick="joinRoom()" />
           </div>
+          or
           <div>
-            <label>
-              Room ID
-              <input type="number" id="roomid" placeholder="E.g. 123" />
-            </label>
-            <input type="button" value="Transfer" onclick="transfer()" />
+            <button onclick="createRoom()">Create room</button>
           </div>
         </form>
 

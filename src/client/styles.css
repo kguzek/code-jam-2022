@@ -15,7 +15,7 @@ main {
 
 form {
   display: flex;
-  flex-direction: column;
+  justify-content: center;
   align-items: center;
   gap: 10px;
 }
@@ -23,7 +23,7 @@ form {
 form div {
   display: flex;
   align-items: flex-end;
-  gap: 10px;
+  gap: 4px;
 }
 
 label {
@@ -37,6 +37,7 @@ h1 {
   background-color: #dfdfdf;
   margin-top: 0px;
   padding: 10px;
+  border-bottom: 1px solid black;
 }
 
 html {
