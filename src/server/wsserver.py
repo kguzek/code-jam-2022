@@ -136,7 +136,6 @@ class ConnectionManager:
     async def disconnect(self, client: Client):
         """Disconnects the client from the server."""
         await client.close()
-
         self.connections.remove(client)
         await self.remove_client_from_room(client)
 

@@ -1,23 +1,11 @@
 """Module containing UI elements to be used in the game menus."""
 
 from time import time
-from typing import Callable, Coroutine, Literal, Text
-from numpy import isin
+from typing import Callable, Coroutine, Literal, Sequence
 import pygame
-from modules import Colour, Axis, SCREEN_DIMS, event_loop
+from modules import Colour, Axis, SCREEN_DIMS, util
 
 DEFAULT_DIMS = (300, 50)
-
-
-def call_callbacks(callbacks: list[Callable[[], Coroutine | None]]):
-    """Calls each callback in the list, scheduling any returned coroutines as tasks
-    to be awaited in the running game event loop.
-    """
-    for callback in callbacks:
-        coro = callback()
-        if not isinstance(coro, Coroutine):
-            continue
-        event_loop.create_task(coro)
 
 
 class BaseElement:
@@ -30,7 +18,8 @@ class BaseElement:
         font: pygame.font.Font = None,
         font_colour: Colour = Colour.WHITE,
         dims: tuple[int, int] = DEFAULT_DIMS,
-        container: list = None,
+        container: Sequence = None,
+        menu: Sequence = None,
         disabled: bool = False,
     ) -> None:
         self.label = label
@@ -55,6 +44,8 @@ class BaseElement:
         if container is None:
             raise ValueError("No element container specified.")
         container.append(self)
+        if menu is not None:
+            menu.append(self)
         Menu.all_elements.append(self)
 
     def render_text(self) -> None:
@@ -153,7 +144,7 @@ class BaseElement:
         if self.disabled:
             # Don't fire click events if the button is disabled
             return
-        call_callbacks(self._click_callbacks[callback_type])
+        util.call_callbacks(self._click_callbacks[callback_type])
 
     def on_mouse(self, action: Literal["down", "up"]):
         """Can be used to decorate functions that will be called when the element is clicked."""
@@ -224,7 +215,7 @@ class SelectableElement(BaseElement):
 
     def _set_selected(self, selected: bool) -> None:
         self.selected = selected
-        call_callbacks(self._on_select_callbacks)
+        util.call_callbacks(self._on_select_callbacks)
 
     def _on_mouse_down(self) -> None:
         if not self.disabled and not self.selected:
@@ -411,6 +402,7 @@ class Menu:
     """Container class that holds all UI elements."""
 
     all_elements: list[BaseElement] = []
+    settings: list[BaseElement] = []
     buttons: list[Button] = []
     text_inputs: list[TextInput] = []
     dropdowns: list[Dropdown] = []

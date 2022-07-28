@@ -56,9 +56,10 @@ class GameStage(Enum):
     """Custom game stages."""
 
     ABORTED = 0
-    CONNECT_TO_SERVER = 1
-    WAITING_FOR_PLAYER = 2
-    GAME_IN_PROGRESS = 3
+    LOADING = 1
+    CONNECT_TO_SERVER = 2
+    WAITING_FOR_PLAYER = 3
+    GAME_IN_PROGRESS = 4
 
 
 class Axis(Enum):
