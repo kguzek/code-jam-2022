@@ -1,10 +1,10 @@
 """Websocket definitions."""
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse, JSONResponse
 
-from server.wsserver import ConnectionManager, Message, EventType
+from server.wsserver import ConnectionManager, EventType, Message
 
 app = FastAPI()
 conn_manager = ConnectionManager()
