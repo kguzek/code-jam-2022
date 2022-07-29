@@ -14,6 +14,10 @@
         <h1>Websocket UI</h1>
 
         <div class="container">
+          <ul id="rooms"></ul>
+        </div>
+
+        <div class="container">
           <p><b>Username:</b> <span id="displayName">None</span></p>
           <p><b>Current room ID:</b> <span id="displayRoom">None</span></p>
         </div>
@@ -34,6 +38,7 @@
             </label>
             <input type="button" value="Transfer" onclick="transfer()" />
           </div>
+          <input type="button" value="CreateRoom" onclick="createRoom()" />
         </form>
 
         <hr />

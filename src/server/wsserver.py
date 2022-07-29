@@ -4,6 +4,7 @@ from asyncio import gather
 import re
 from enum import Enum
 from uuid import uuid4
+from typing import List
 
 from fastapi import WebSocket
 
@@ -11,9 +12,11 @@ from fastapi import WebSocket
 class EventType(Enum):
     """Enum containing all message event types."""
 
+    CREATE_ROOM = "create_room"
     CONNECT = "new_connection"
     TRANSFER = "transferred"
     DISCONNECT = "client_disconnected"
+    GET_ROOMS = "get_rooms"
 
 
 class Message:
@@ -56,6 +59,16 @@ class Client:
                 self.name = "Anonymous"
         else:
             self.name = "Anonymous"
+
+    async def debug(self, message):
+        """Sends a debug message to the client."""
+
+        await self.socket.send_json(
+            {
+                "type": "debug",
+                "message": message,
+            }
+        )
 
     async def send_message(self, message: Message):
         """
@@ -169,6 +182,10 @@ class ConnectionManager:
             if room.room_id == room_id:
                 return room
         return Room(room_id)
+
+    def get_rooms(self) -> List[Room]:
+        """Get all rooms with 1 person connected to it."""
+        return [room.room_id for room in self.rooms if len(room.clients) == 1]
 
     def __str__(self) -> str:
         output = "Rooms:\n"
