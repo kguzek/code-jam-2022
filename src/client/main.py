@@ -17,11 +17,14 @@ SCREEN = pygame.display.set_mode(SCREEN_DIMS)
 CLOCK = pygame.time.Clock()
 FRAMERATE = 60  # FPS
 
+LOADING_MSG = "Connecting to server..."
+SERVER_CONNECTION_ERROR_MSG = "Error connecting to server!"
+
 
 # REGION Register menu elements
 dropdown = Dropdown(
     "Select room",
-    (0.5, 3 / 14),
+    (0.5, 1 / 4),
     icon_font=FONT.reemkufiregular,
     options=["Remote server", "Locally-hosted server"],
     menu=Menu.settings,
@@ -35,10 +38,10 @@ ipt_server_url = TextInput(
     detail_font=FONT.seguisym,
     menu=Menu.settings,
 )
-
-btn_join_room = Button("Join room", (0.5, 9 / 14), disabled=True, menu=Menu.settings)
+btn_join_room = Button("Join room", (0.5, 1 / 2), disabled=True, menu=Menu.settings)
 btn_test = Button("Test", (0.5, 0.5))
-txt_loading = Label("Loading...", (0.5, 0.5))
+btn_retry_connection = Button("Retry connnection", (0.5, 3 / 4))
+txt_current_info = Label("", (0.5, 0.5))
 # ENDREGION
 
 # REGION Register element events
@@ -54,15 +57,12 @@ def join_room():
     btn_join_room.label = old_label
 
 
-@ipt_server_url.on_select_change
+# TODO: implement textbox on_value_change hook
+# @ipt_server_url.on_select_change
 def handle_value_change():
-    if ipt_server_url.selected:
+    if ipt_server_url.value or btn_join_room.disabled:
         return
-    if ipt_server_url.value == GameInfo.last_valid_server:
-        return
-    GameInfo.last_valid_server = None
-    if not btn_join_room.disabled:
-        btn_join_room.toggle_disabled_state()
+    btn_join_room.toggle_disabled_state()
 
 
 @btn_test.on_mouse("down")
@@ -83,6 +83,11 @@ def on_server_message(data: str or bytes) -> None:
     print("Received message from server:", data)
 
 
+@btn_retry_connection.on_mouse("down")
+def connect_to_server() -> None:
+    backend.connect_to_websocket(GameInfo.WEBSOCKET_URL)
+
+
 # ENDREGION
 
 
@@ -95,20 +100,27 @@ def tick():
 
     match GameInfo.current_stage:
         case GameStage.JOIN_ROOM:
-            current_menu = Menu.settings
+            visible_elems = Menu.settings
         case GameStage.WAITING_FOR_PLAYER | GameStage.GAME_IN_PROGRESS:
-            current_menu = [btn_test]
+            visible_elems = [btn_test]
+        case GameStage.WEBSOCKET_ERROR:
+            txt_current_info.assert_properties(
+                label=SERVER_CONNECTION_ERROR_MSG, font_colour=Colour.RED
+            )
+            visible_elems = [txt_current_info, btn_retry_connection]
         case GameStage.LOADING:
-            current_menu = [txt_loading]
+            txt_current_info.assert_properties(
+                label=LOADING_MSG, font_colour=Colour.WHITE
+            )
+            visible_elems = [txt_current_info]
         case _:
-            current_menu = []
-
-    for elem in current_menu:
+            visible_elems = []
+    for elem in visible_elems:
         elem.check_click(mouse_pos, clicked)
-    return current_menu
+    return visible_elems
 
 
-def render(current_menu: Sequence[BaseElement]):
+def render(visible_elems: Sequence[BaseElement]):
     """Rerenders the game window."""
     # Fill with white
     SCREEN.fill(Colour.GREY2.value)
@@ -123,7 +135,7 @@ def render(current_menu: Sequence[BaseElement]):
         fps_surface = FONT.nimbus_sans.render(message, True, fps_colour)
         SCREEN.blit(fps_surface, (0, 0))
 
-    for elem in current_menu:
+    for elem in visible_elems:
         elem.draw(SCREEN)
     render_fps()
     pygame.display.update()
@@ -136,7 +148,7 @@ def run_once(loop: asyncio.AbstractEventLoop):
 
 
 # Connect to the websocket
-backend.connect_to_websocket(GameInfo.WEBSOCKET_URL)
+connect_to_server()
 
 # Main game loop
 try:

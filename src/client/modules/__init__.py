@@ -61,6 +61,7 @@ class GameStage(Enum):
     WAITING_FOR_PLAYER = 3
     GAME_IN_PROGRESS = 4
     GAME_FINISHED = 5
+    WEBSOCKET_ERROR = 6
 
 
 class Axis(Enum):

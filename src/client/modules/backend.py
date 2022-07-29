@@ -71,24 +71,33 @@ def _on_websocket_handshake() -> None:
     GameInfo.current_stage = GameStage.JOIN_ROOM
 
 
-async def make_websocket_connection(url):
+def _on_websocket_error():
+    """Called if there is an error connecting to the websocket."""
+    GameInfo.current_stage = GameStage.WEBSOCKET_ERROR
+
+
+async def make_websocket_connection(url: str):
     """Makes a blocking infinite connection to the server websocket."""
     url = get_url(url, "ws")
-    async with ws_client.connect(url) as websocket:
-        _on_websocket_handshake()
-        while GameInfo.current_stage != GameStage.ABORTED:
-            try:
-                # Only wait a small amount of time for message from server
-                data = await asyncio.wait_for(websocket.recv(), 0.25)
-            except asyncio.TimeoutError:
-                pass
-            else:
-                # Handle the received message
-                await session.receive_message(data)
-            await session.send_all_data(websocket)
+
+    try:
+        async with ws_client.connect(url) as websocket:
+            _on_websocket_handshake()
+            while GameInfo.current_stage != GameStage.ABORTED:
+                try:
+                    # Only wait a small amount of time for message from server
+                    data = await asyncio.wait_for(websocket.recv(), 0.25)
+                except asyncio.TimeoutError:
+                    pass
+                else:
+                    # Handle the received message
+                    await session.receive_message(data)
+                await session.send_all_data(websocket)
+    except ConnectionRefusedError:
+        _on_websocket_error()
 
 
-def connect_to_websocket(url):
+def connect_to_websocket(url: str):
     """Creates a thread to connect to the server websocket."""
     coroutine: Coroutine[any, any, None] = make_websocket_connection(url)
     thread = threading.Thread(target=asyncio.run, args=(coroutine,))

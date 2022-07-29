@@ -30,7 +30,7 @@ class BaseElement:
         if font is None:
             font = self.DEFAULT_FONT
         self.font = font
-        self.font_colour: tuple[int, int, int] = font_colour.value
+        self.font_colour = font_colour
         self.render_text()
 
         self.dimensions = dims
@@ -57,7 +57,7 @@ class BaseElement:
         Menu.all_elements.append(self)
 
     def render_text(self) -> None:
-        self.text = self.font.render(self.label, True, self.font_colour)
+        self.text = self.font.render(self.label, True, self.font_colour.value)
         self.text_width = self.text.get_width()
         self.text_height = self.text.get_height()
 
@@ -161,6 +161,7 @@ class BaseElement:
 
         def wrapper(callback: Callable[[], Coroutine | None]):
             self._click_callbacks[action].append(callback)
+            return callback
 
         return wrapper
 
@@ -228,6 +229,13 @@ class Label(BaseElement):
     def draw(self, screen: pygame.Surface) -> None:
         """Blits the label to the game window."""
         self.blit_text(screen)
+
+    def assert_properties(self, **values) -> None:
+        """Sets all the given properties to the specified values, if they are not already so."""
+        for key, value in values.items():
+            if self.__getattribute__(key) == value:
+                continue
+            self.__setattr__(key, value)
 
 
 class Button(BaseElement):
