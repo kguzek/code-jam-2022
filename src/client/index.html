@@ -2,52 +2,36 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
     <title>Document</title>
-    <script defer src="index.js"></script>
-    <link rel="stylesheet" href="styles.css" />
+    <style>
+      body.not-in-room div#in-room {
+        display: none;
+      }
+      body.in-room div#not-in-room {
+        display: none;
+      }
+    </style>
   </head>
-  <body>
-    <div id="root">
-      <main>
-        <h1>Websocket UI</h1>
-
-        <div class="container">
-          <ul id="rooms"></ul>
-        </div>
-
-        <div class="container">
-          <p><b>Username:</b> <span id="displayName">None</span></p>
-          <p><b>Current room ID:</b> <span id="displayRoom">None</span></p>
-        </div>
-
-        <hr />
-        <form class="container">
-          <div>
-            <label>
-              Username
-              <input type="text" id="name" placeholder="E.g. Jeff" />
-            </label>
-            <input type="button" value="Connect" onclick="connect()" />
-          </div>
-          <div>
-            <label>
-              Room ID
-              <input type="number" id="roomid" placeholder="E.g. 123" />
-            </label>
-            <input type="button" value="Transfer" onclick="transfer()" />
-          </div>
-          <input type="button" value="CreateRoom" onclick="createRoom()" />
-        </form>
-
-        <hr />
-
-        <div class="container">
-          <h2>Clients in room:</h2>
-          <ul id="clients"></ul>
-        </div>
-      </main>
+  <body class="not-in-room">
+    <div id="not-in-room">
+      <p>Open rooms:</p>
+      <ul id="open-rooms"></ul>
+      <label for="room_id">Room id:</label>
+      <input id="room_id" type="number" />
+      <button onclick="connect_to_room()">Connect</button>
+      <br />
+      <button onclick="create_room()">Create room</button>
+    </div>
+    <div id="in-room">
+      <p>You are in room <span id="current_room_id"></span></p>
+      <p>Players connected:</p>
+      <ul id="connected-players">
+        <li>x</li>
+      </ul>
+      <button onclick="leave_room()">Disconnect</button>
     </div>
   </body>
+  <script src="index.js"></script>
 </html>

@@ -1,122 +1,109 @@
-// Connect to the server through websocket connection.
-const WEBSOCKET_URL = "ws://localhost:8000/ws";
-const ws = new WebSocket(WEBSOCKET_URL);
+// Create websocket connection.
+const ws = new WebSocket("ws://localhost:8000/ws");
 
-const DEBUG = true;
+let room_id;
+let sign;
 
-get_rooms();
+ws.onopen = () => {
+  get_open_rooms();
+};
 
-function update_rooms(room_ids) {
-  const rooms_el = document.getElementById("rooms");
+ws.onmessage = (message) => {
+  const data = JSON.parse(message.data);
 
-  rooms_el.innerHTML = "";
+  switch (data.type) {
+    case "update_open_rooms":
+      update_open_rooms(data.open_rooms);
 
-  room_ids.forEach((room_id) => {
-    const room_el = document.createElement("li");
+      break;
 
-    room_el.innerHTML = `
-    <button>${room_id}</button>
-    `;
+    case "connected":
+      room_id = data.room_id;
+      sign = data.sign;
 
-    rooms_el.appendChild(room_el);
-  });
-}
-
-function get_rooms() {
-  setTimeout(() => {
-    ws.send(
-      JSON.stringify({
-        type: "get_rooms",
-      })
-    );
-  }, 1000);
-}
-
-const INPUT_NAME_ELEM = document.getElementById("name");
-const INPUT_ROOM_ELEM = document.getElementById("roomid");
-const DISPLAY_NAME_ELEM = document.getElementById("displayName");
-const DISPLAY_ROOM_ELEM = document.getElementById("displayRoom");
-const CLIENTS_ELEM = document.getElementById("clients");
-
-function debug(...args) {
-  if (DEBUG) {
-    console.warn(...args);
+      go_to_room();
   }
+};
+
+function go_to_room() {
+  // This function sets the client ui to in-room state.
+
+  // Set ui state.
+  document.body.className = "in-room";
+
+  // Set current room_id
+  document.getElementById("current_room_id").innerHTML = room_id;
 }
 
-function addClientElem(client) {
-  const elem = document.createElement("li");
-  elem.textContent = client.name;
-  elem.id = `client-${client.uuid}`;
-  CLIENTS_ELEM.appendChild(elem);
+function leave_room() {
+  // This function sets the client ui to not-in-room state.
+
+  // Set ui state.
+  document.body.className = "not-in-room";
+
+  ws.send(
+    JSON.stringify({
+      type: "disconnect",
+      room_id: room_id,
+      sign: sign,
+    })
+  );
+
+  get_open_rooms();
 }
 
-function createRoom() {
-  debug("CLIENT:", "create_room");
-
+function create_room() {
   ws.send(
     JSON.stringify({
       type: "create_room",
     })
   );
-
-  get_rooms();
 }
 
-ws.onmessage = (event) => {
-  const data = JSON.parse(event.data);
+function connect_to_room() {
+  // This function connects client to the room with specified room_id.
 
-  if (data.type === "debug") {
-    debug("SERVER:", data.message);
+  // Get room_id.
+  const input_value = document.getElementById("room_id").value;
+  const room_id = Number(input_value);
+
+  if (input_value != "" && room_id >= 0) {
+    ws.send(
+      JSON.stringify({
+        type: "connect",
+        room_id: room_id,
+      })
+    );
   } else {
-    console.log(event);
+    alert("Wrong room id!");
   }
+}
 
-  switch (data.type) {
-    case "transferred":
-      room = data.roomid;
-      // Do something with the room transfer
-      DISPLAY_ROOM_ELEM.textContent = room;
-
-      CLIENTS_ELEM.innerHTML = "";
-      data.clients.forEach(addClientElem);
-      break;
-
-    case "get_rooms":
-      debug("CLIENT: rooms:", data.rooms);
-      update_rooms(data.rooms);
-
-      break;
-
-    case "new_connection":
-      addClientElem(data.client);
-      break;
-
-    case "client_disconnected":
-      const child = document.getElementById(`client-${data.uuid}`);
-      try {
-        CLIENTS_ELEM.removeChild(child);
-      } catch (error) {
-        console.error("Could not remove client from room.", data, error);
-      }
-      break;
-
-    case "create_room":
-      const room_id = data.room_id;
-
-      debug("CLIENT:", `room_id: ${room_id}`);
-
-      break;
-  }
-};
-
-function transfer() {
-  id = INPUT_ROOM_ELEM.value;
-  if (!ws) return;
+function get_open_rooms() {
   ws.send(
     JSON.stringify({
-      type: "transfer",
-      roomid: id,
+      type: "get_open_rooms",
     })
   );
+}
+
+function update_open_rooms(open_rooms) {
+  const open_rooms_el = document.getElementById("open-rooms");
+  open_rooms_el.innerHTML = "";
+
+  open_rooms.forEach((room_id) => {
+    const room_el = document.createElement("li");
+    room_el.innerHTML = `<button onclick="set_room_id(${room_id})">${room_id}</button>`;
+    open_rooms_el.appendChild(room_el);
+  });
+}
+
+function set_room_id(room_id) {
+  // This function sets the value of the room_id input to the given room_id.
+
+  // Get room_id input element.
+  const room_id_el = document.getElementById("room_id");
+
+  // Set value to given room_id.
+  room_id_el.value = room_id;
 }
