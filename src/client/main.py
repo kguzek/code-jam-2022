@@ -2,11 +2,10 @@
 
 import asyncio
 from typing import Sequence
-import aiohttp
 import pygame
 
 from modules import backend, SCREEN_DIMS, event_loop, Colour, Font, GameStage, GameInfo
-from modules.gui import BaseElement, Button, Menu, TextInput, Dropdown
+from modules.gui import Label, BaseElement, Button, Menu, TextInput, Dropdown
 
 pygame.init()
 pygame.key.set_repeat(500, 30)
@@ -21,7 +20,7 @@ FRAMERATE = 60  # FPS
 
 # REGION Register menu elements
 dropdown = Dropdown(
-    "Select server",
+    "Select room",
     (0.5, 3 / 14),
     icon_font=FONT.reemkufiregular,
     options=["Remote server", "Locally-hosted server"],
@@ -29,66 +28,41 @@ dropdown = Dropdown(
 )
 ipt_server_url = TextInput(
     "Server URL",
-    "E.g. localhost:8000",
     (0.5, 5 / 14),
-    FONT.consolas,
-    FONT.nimbus_sans_sm,
-    FONT.seguisym,
+    placeholder="E.g. localhost:8000",
+    font=FONT.consolas,
+    label_font=FONT.nimbus_sans_sm,
+    detail_font=FONT.seguisym,
     menu=Menu.settings,
 )
-btn_test_connection = Button("Test connection", (0.5, 7 / 14), menu=Menu.settings)
-btn_confirm = Button(
-    "Confirm settings", (0.5, 9 / 14), disabled=True, menu=Menu.settings
-)
+
+btn_join_room = Button("Join room", (0.5, 9 / 14), disabled=True, menu=Menu.settings)
 btn_test = Button("Test", (0.5, 0.5))
+txt_loading = Label("Loading...", (0.5, 0.5))
 # ENDREGION
 
 # REGION Register element events
-@btn_test_connection.on_mouse("down")
-async def make_test_connection():
-    old_label = btn_test_connection.label
-    btn_test_connection.label = "Testing..."
-    btn_test_connection.toggle_disabled_state()
-    ipt_server_url.toggle_disabled_state()
-    try:
-        success = await backend.test_connection(ipt_server_url.value)
-    except aiohttp.InvalidURL:
-        ipt_server_url.success = False
-        return
-    else:
-        ipt_server_url.success = success
-        if not success:
-            return
-        GameInfo.last_valid_server = ipt_server_url.value
-        if btn_confirm.disabled:
-            btn_confirm.toggle_disabled_state()
-    finally:
-        btn_test_connection.label = old_label
-        ipt_server_url.toggle_disabled_state()
 
 
-@btn_confirm.on_mouse("down")
-def confirm_settings():
-    old_label = btn_confirm.label
-    btn_confirm.toggle_disabled_state()
-    btn_confirm.label = "Connecting to the server..."
-    backend.connect_to_websocket(GameInfo.last_valid_server)
+@btn_join_room.on_mouse("down")
+def join_room():
+    old_label = btn_join_room.label
+    btn_join_room.toggle_disabled_state()
+    btn_join_room.label = "Connecting to room..."
     GameInfo.current_stage = GameStage.LOADING
-    btn_confirm.toggle_disabled_state()
-    btn_confirm.label = old_label
+    btn_join_room.toggle_disabled_state()
+    btn_join_room.label = old_label
 
 
 @ipt_server_url.on_select_change
 def handle_value_change():
     if ipt_server_url.selected:
-        if btn_test_connection.disabled:
-            btn_test_connection.toggle_disabled_state()
         return
     if ipt_server_url.value == GameInfo.last_valid_server:
         return
     GameInfo.last_valid_server = None
-    if not btn_confirm.disabled:
-        btn_confirm.toggle_disabled_state()
+    if not btn_join_room.disabled:
+        btn_join_room.toggle_disabled_state()
 
 
 @btn_test.on_mouse("down")
@@ -120,10 +94,12 @@ def tick():
     clicked = pygame.mouse.get_pressed(num_buttons=3)
 
     match GameInfo.current_stage:
-        case GameStage.CONNECT_TO_SERVER:
+        case GameStage.JOIN_ROOM:
             current_menu = Menu.settings
         case GameStage.WAITING_FOR_PLAYER | GameStage.GAME_IN_PROGRESS:
             current_menu = [btn_test]
+        case GameStage.LOADING:
+            current_menu = [txt_loading]
         case _:
             current_menu = []
 
@@ -159,6 +135,9 @@ def run_once(loop: asyncio.AbstractEventLoop):
     loop.run_forever()
 
 
+# Connect to the websocket
+backend.connect_to_websocket(GameInfo.WEBSOCKET_URL)
+
 # Main game loop
 try:
     while GameInfo.current_stage != GameStage.ABORTED:
@@ -181,5 +160,5 @@ except KeyboardInterrupt:
     pass
 
 # Clean up event loop and close HTTP session
-event_loop.run_until_complete(backend.session.close())
+event_loop.run_until_complete(backend.close())
 event_loop.close()

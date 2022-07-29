@@ -4,16 +4,13 @@ import asyncio
 import json
 import threading
 from typing import Callable, Coroutine
-from websockets import client as ws_client, uri as ws_uri
-
-import aiohttp
+from websockets import client as ws_client
 
 from modules import GameInfo, GameStage
 
 
-class WebSession(aiohttp.ClientSession):
-    """Child class of `aiohttp.ClientSession` that additionally defines a global storage for
-    a websocket connection."""
+class WebSocket:
+    """Class that allows for transmitting data through the open websocket connection."""
 
     def __init__(self):
         self._data_to_send: list[dict] = []
@@ -50,46 +47,33 @@ class WebSession(aiohttp.ClientSession):
             await coro
 
 
-session = WebSession()
+session = WebSocket()
 
 
 async def close():
-    """Closes the web session."""
-    await session.close()
+    """Closes the websocket connection."""
 
 
-def get_url(url: str, path: str, scheme: str = "http") -> str | ws_uri.WebSocketURI:
-    """Trims the URL, adds the given scheme as needed, and appends the given path. If the
-    URL scheme is `ws`, returns a `WebSocketURI` object."""
+def get_url(url: str, path: str, scheme: str = "ws") -> str:
+    """Trims the URL, adds the given scheme as needed, and appends the given path.."""
+    if not url:
+        raise ValueError("Invalid URL.")
+    # Append path
     url = f"{url.rstrip('/')}/{path}"
-    # Add HTTP scheme if not present
+    # Add scheme if not present
     if "://" not in url:
         url = f"{scheme}://" + url.lstrip(":/")
     return url
 
 
-async def test_connection(base_url: str):
-    """Tests if the request to the server returns the appropriate response."""
-    base_url = get_url(base_url, "test-connection")
-    print("GET", base_url)
-    try:
-        async with session.get(base_url) as resp:
-            data = await resp.json()
-            return data.get("server-running")
-    except aiohttp.ClientConnectionError:
-        return False
-
-
 def _on_websocket_handshake() -> None:
     """Called when the websocket connection is established."""
-    GameInfo.current_stage = GameStage.WAITING_FOR_PLAYER
+    GameInfo.current_stage = GameStage.JOIN_ROOM
 
 
 async def make_websocket_connection(url):
     """Makes a blocking infinite connection to the server websocket."""
-    if not url:
-        raise ValueError("Invalid URL.")
-    url: ws_uri.WebSocketURI = get_url(url, "ws", scheme="ws")
+    url = get_url(url, "ws")
     async with ws_client.connect(url) as websocket:
         _on_websocket_handshake()
         while GameInfo.current_stage != GameStage.ABORTED:

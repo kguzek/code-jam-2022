@@ -57,9 +57,10 @@ class GameStage(Enum):
 
     ABORTED = 0
     LOADING = 1
-    CONNECT_TO_SERVER = 2
+    JOIN_ROOM = 2
     WAITING_FOR_PLAYER = 3
     GAME_IN_PROGRESS = 4
+    GAME_FINISHED = 5
 
 
 class Axis(Enum):
@@ -73,5 +74,5 @@ class Axis(Enum):
 class GameInfo:
     """Information pertaining to the current game process."""
 
-    current_stage: GameStage = GameStage.CONNECT_TO_SERVER
-    last_valid_server = None
+    WEBSOCKET_URL = "localhost:8000"
+    current_stage: GameStage = GameStage.LOADING

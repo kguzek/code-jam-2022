@@ -9,12 +9,16 @@ DEFAULT_DIMS = (300, 50)
 
 
 class BaseElement:
+    """Base UI element abstract class for specific elements to inherit from."""
+
     DEFAULT_FONT: pygame.font.Font = None
 
     def __init__(
         self,
         label: str,
         pos: tuple[float, float],
+        /,
+        *,
         font: pygame.font.Font = None,
         font_colour: Colour = Colour.WHITE,
         dims: tuple[int, int] = DEFAULT_DIMS,
@@ -42,7 +46,11 @@ class BaseElement:
         }
 
         if container is None:
-            raise ValueError("No element container specified.")
+            raise ValueError(
+                "No element container specified. This is likely a development error, "
+                "and @kguzek simply forgot to add the appropriate line "
+                "when inheriting from `gui.BaseElement`."
+            )
         container.append(self)
         if menu is not None:
             menu.append(self)
@@ -64,7 +72,9 @@ class BaseElement:
         screen.blit(self.text, text_pos)
 
     def draw(self, screen: pygame.Surface) -> None:
-        """Blits the element to the game window."""
+        """Blits the element to the game window. For `BaseElement`, this means blitting a black
+        rectangular outline. This method is meant to be overriden by subclasses, but calls to the
+        it may still be made."""
         # Element outline
         pygame.draw.rect(screen, Colour.BLACK.value, self.pos + self.dimensions, 2)
 
@@ -155,27 +165,9 @@ class BaseElement:
         return wrapper
 
 
-class Button(BaseElement):
-    def __init__(self, *args, **kwargs) -> None:
-        super().__init__(*args, container=Menu.buttons, **kwargs)
-
-    def draw(self, screen: pygame.Surface) -> None:
-        """Blits the button to the game window."""
-        dimensions = self.pos + self.dimensions
-        # Element background
-        bg_colour = (
-            Colour.GREY2
-            if self.disabled
-            else Colour.GREY5
-            if self.is_hovered
-            else Colour.GREY4
-        )
-        pygame.draw.rect(screen, bg_colour.value, dimensions)
-        self.blit_text(screen)
-        super().draw(screen)
-
-
 class SelectableElement(BaseElement):
+    """Abstract element for selectable elements to inherit from."""
+
     def __init__(self, *args, **kwargs) -> None:
         self.selected = False
         self._on_select_callbacks: list[Callable[[], Coroutine | None]] = []
@@ -227,18 +219,55 @@ class SelectableElement(BaseElement):
         self._on_select_callbacks.append(callback)
 
 
+class Label(BaseElement):
+    """Basic element that blits text to the screen."""
+
+    def __init__(self, label: str, pos: tuple[float, float], **kwargs) -> None:
+        super().__init__(label, pos, container=Menu.labels, **kwargs)
+
+    def draw(self, screen: pygame.Surface) -> None:
+        """Blits the label to the game window."""
+        self.blit_text(screen)
+
+
+class Button(BaseElement):
+    """Button element that listens for hover and click events."""
+
+    def __init__(self, label: str, pos: tuple[float, float], **kwargs) -> None:
+        super().__init__(label, pos, container=Menu.buttons, **kwargs)
+
+    def draw(self, screen: pygame.Surface) -> None:
+        """Blits the button to the game window."""
+        dimensions = self.pos + self.dimensions
+        # Element background
+        bg_colour = (
+            Colour.GREY2
+            if self.disabled
+            else Colour.GREY5
+            if self.is_hovered
+            else Colour.GREY4
+        )
+        pygame.draw.rect(screen, bg_colour.value, dimensions)
+        self.blit_text(screen)
+        super().draw(screen)
+
+
 class TextInput(SelectableElement):
+    """Text box element that accepts user-inputted text."""
+
     CURSOR_WIDTH = 3  # px
 
     def __init__(
         self,
         label: str,
-        placeholder: str,
         pos: tuple[float, float],
+        /,
+        *,
+        placeholder: str,
         font: pygame.font.Font,
         label_font: pygame.font.Font,
         detail_font: pygame.font.Font,
-        **kwargs
+        **kwargs,
     ) -> None:
         self.value = ""
         self.placeholder = placeholder
@@ -256,7 +285,7 @@ class TextInput(SelectableElement):
             font=label_font,
             font_colour=Colour.GREY2,
             container=Menu.text_inputs,
-            **kwargs
+            **kwargs,
         )
 
     def draw(self, screen: pygame.Surface) -> None:
@@ -288,7 +317,7 @@ class TextInput(SelectableElement):
         text_surf.blit(value_text, (0, 0))
         # Blit cursor onto `text_surf`
         if self.selected:
-            self.draw_cursor(text_surf, text_width, text_height)
+            self._draw_cursor(text_surf, text_width, text_height)
 
         # Blit `text_surf` onto visible text area
         text_area_dims = (self.dimensions[0] - 10, self.dimensions[1] - 30)
@@ -312,7 +341,9 @@ class TextInput(SelectableElement):
             self.blit_detail(screen, self.check if self.success else self.exclamation)
         super().draw(screen)
 
-    def draw_cursor(self, surface: pygame.Surface, txt_wdth: int, txt_hgt: int) -> None:
+    def _draw_cursor(
+        self, surface: pygame.Surface, txt_wdth: int, txt_hgt: int
+    ) -> None:
         """Draws the blinking cursor."""
         now = time()
         blink_diff = now - self.last_blink
@@ -354,17 +385,30 @@ class TextInput(SelectableElement):
         pygame.mouse.set_cursor(*pygame.Cursor(pygame.SYSTEM_CURSOR_IBEAM))
 
 
+# TODO: Complete dropdown box + dropdown box option elements
 class Dropdown(SelectableElement):
-    def __init__(self, *args, icon_font: pygame.font.Font, options=[], **kwargs):
+    """Dropdown box that reveals an arbitrary number of selectable `Option` elements."""
+
+    def __init__(
+        self,
+        label: str,
+        pos: tuple[float, float],
+        /,
+        *,
+        icon_font: pygame.font.Font,
+        options=[],
+        **kwargs,
+    ):
         self.selected_option = None
         self.options = options
         self.icon = icon_font.render("V", True, Colour.WHITE.value)
         super().__init__(
-            *args,
+            label,
+            pos,
             font_colour=Colour.BLACK,
             dims=(DEFAULT_DIMS[0], DEFAULT_DIMS[1] * 2 // 3),
             container=Menu.dropdowns,
-            **kwargs
+            **kwargs,
         )
 
     def draw(self, screen: pygame.Surface) -> None:
@@ -384,6 +428,8 @@ class Dropdown(SelectableElement):
 
 
 class Option(BaseElement):
+    """Child element that is displayed for each possible option of a `Dropdown` element."""
+
     def __init__(self, parent: Dropdown, value: str, *args, **kwargs):
         self.parent = parent
         self.value = value
@@ -403,6 +449,8 @@ class Menu:
 
     all_elements: list[BaseElement] = []
     settings: list[BaseElement] = []
+
+    labels: list[Label] = []
     buttons: list[Button] = []
     text_inputs: list[TextInput] = []
     dropdowns: list[Dropdown] = []
