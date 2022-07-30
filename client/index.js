@@ -228,8 +228,6 @@ function move(cell) {
       sign: sign,
       cell: cell,
     });
-  } else {
-    alert("Wrong cell!");
   }
 }
 
