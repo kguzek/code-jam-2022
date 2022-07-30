@@ -1,9 +1,10 @@
 """Main program of the server."""
 
-from random import randint
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from server.gameManager import GameManager
+from server.connectionManager import ConnectionManager
 
 
 DEBUG = True
@@ -16,46 +17,11 @@ def debug(message):
         print(message)
 
 
-class ConnectionManager:
-    """This class handles connection to the rooms."""
-
-    def __init__(self):
-        """This function initializes the class."""
-
-        self.rooms = {}
-        self.clients = []
-
-    async def add_client(self, client: WebSocket):
-        self.clients.append(client)
-
-    async def get_open_rooms(self):
-        open_rooms = [
-            room_id
-            for room_id, room in self.rooms.items()
-            if None in [room["x"], room["o"]]
-        ]
-
-        return open_rooms
-
-    async def update_open_rooms(self):
-        """This function sends information about new rooms to clients
-        that are not connected to room."""
-
-        open_rooms = await self.get_open_rooms()
-
-        for client in self.clients:
-            await client.send_json(
-                {
-                    "type": "update_open_rooms",
-                    "open_rooms": open_rooms,
-                }
-            )
-
-
 app = FastAPI()
 app.mount("/client", StaticFiles(directory="client", html=True), name="client")
 
 conn_manager = ConnectionManager()
+game_manager = GameManager()
 
 
 @app.get("/")
@@ -65,57 +31,43 @@ async def root():
 
 
 @app.websocket("/ws")
-async def websocket_endpoint(websocket: WebSocket):
-    """The main endpoint for websocket connection."""
+async def websocket_endpoint(client: WebSocket):
+    """Main endpoint for websocket connection."""
 
-    # Accept websocket connection.
-    await websocket.accept()
+    # Accept websocket connection and add connected client to list of open clients.
+    await conn_manager.connect(client)
 
-    await conn_manager.add_client(websocket)
-
-    # Listens to all messages from the connected client.
+    # Listens to all messages from client.
     try:
         while True:
-            message = await websocket.receive_json()
+            message = await client.receive_json()
             debug(f"Received message: {message}")
 
             match message["type"]:
-                # If client wants to connect to the room:
-                case "connect":
-                    # Add client to the room.
-                    room_id = message["room_id"]
-
-                    room = conn_manager.rooms[room_id]
-
-                    room["o"] = websocket
-
-                    # Send message with type "connected" to the client.
-                    await websocket.send_json(
-                        {
-                            "type": "connected",
-                            "room_id": room_id,
-                            "sign": "o",
-                        }
+                # If client wants to connect to the open room:
+                case "join_room":
+                    player_x, player_o = await conn_manager.join_room(
+                        client, message["room_id"]
                     )
 
-                case "disconnect":
-                    room_id = message["room_id"]
-                    sign = message["sign"]
+                    if (player_x, player_o) == (None, None):
+                        return
 
-                    conn_manager.rooms[room_id][sign] = None
+                    await game_manager.start_game(
+                        message["room_id"], player_x, player_o
+                    )
 
-                    if sign == "x":
-                        del conn_manager.rooms[room_id]
+                # If the client left the room.
+                case "leave_room":
+                    await conn_manager.leave_room(client)
 
-                    await conn_manager.add_client(websocket)
-
-                    await conn_manager.update_open_rooms()
+                    conn_manager.open_clients.append(client)
 
                 # If message type is "get_open_rooms":
-                case "get_open_rooms":
+                case "update_open_rooms":
                     open_rooms = await conn_manager.get_open_rooms()
 
-                    await websocket.send_json(
+                    await client.send_json(
                         {
                             "type": "update_open_rooms",
                             "open_rooms": open_rooms,
@@ -124,28 +76,17 @@ async def websocket_endpoint(websocket: WebSocket):
 
                 # If message type is "create_room":
                 case "create_room":
-                    # Create room with client that created it.
-                    room_id = randint(0, 10**5)
-                    conn_manager.rooms[room_id] = {
-                        "x": websocket,
-                        "o": None,
-                    }
+                    await conn_manager.create_room(client)
 
-                    # Send room_id to client.
-                    await websocket.send_json(
-                        {
-                            "type": "connected",
-                            "room_id": room_id,
-                            "sign": "x",
-                        }
+                case "move":
+                    await game_manager.move(
+                        message["room_id"],
+                        message["sign"],
+                        message["cell"],
                     )
-
-                    conn_manager.clients.remove(websocket)
-
-                    await conn_manager.update_open_rooms()
 
     # If client has disconnected:
     except WebSocketDisconnect:
         debug("Client disconnected")
 
-        conn_manager.clients.remove(websocket)
+        await conn_manager.leave_room(client)

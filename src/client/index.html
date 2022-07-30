@@ -12,6 +12,39 @@
       body.in-room div#not-in-room {
         display: none;
       }
+      #board.show {
+        display: table;
+      }
+      #board-cell {
+        position: relative;
+        width: 50%;
+      }
+      #board {
+        display: none;
+        margin-top: 10px;
+        width: 100px;
+        background-color: white;
+        border-collapse: collapse;
+      }
+      #board td,
+      #board th {
+        border: 1px solid black;
+        text-align: center;
+      }
+      #board tr:first-child td {
+        border-top: 0;
+      }
+      #board tr:last-child td {
+        border-bottom: 0;
+      }
+      #board tr td:first-child,
+      #board tr th:first-child {
+        border-left: 0;
+      }
+      #board tr td:last-child,
+      #board tr th:last-child {
+        border-right: 0;
+      }
     </style>
   </head>
   <body class="not-in-room">
@@ -20,18 +53,33 @@
       <ul id="open-rooms"></ul>
       <label for="room_id">Room id:</label>
       <input id="room_id" type="number" />
-      <button onclick="connect_to_room()">Connect</button>
+      <button onclick="join_room()">Connect</button>
       <br />
       <button onclick="create_room()">Create room</button>
     </div>
     <div id="in-room">
       <p>You are in room <span id="current_room_id"></span></p>
-      <p>Players connected:</p>
-      <ul id="connected-players">
-        <li>x</li>
-      </ul>
-      <button onclick="leave_room()">Disconnect</button>
+      <p>Your sign: <span id="your_sign"></span></p>
+      <p>Info: <span id="info"></span></p>
+      <button onclick="leave_room()">Leave room</button>
     </div>
+    <table id="board">
+      <tr>
+        <td id="0" onclick="move(0)">*</td>
+        <td id="1" onclick="move(1)">*</td>
+        <td id="2" onclick="move(2)">*</td>
+      </tr>
+      <tr>
+        <td id="3" onclick="move(3)">*</td>
+        <td id="4" onclick="move(4)">*</td>
+        <td id="5" onclick="move(5)">*</td>
+      </tr>
+      <tr>
+        <td id="6" onclick="move(6)">*</td>
+        <td id="7" onclick="move(7)">*</td>
+        <td id="8" onclick="move(8)">*</td>
+      </tr>
+    </table>
   </body>
   <script src="index.js"></script>
 </html>
