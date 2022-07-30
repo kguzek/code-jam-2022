@@ -67,8 +67,6 @@ ws.onmessage = (message) => {
       set_info("Your opponent has disconnected.");
       hide_board();
 
-      reset_room_info();
-
       reset_board();
       hide_board();
 
