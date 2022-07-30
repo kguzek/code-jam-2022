@@ -1,12 +1,26 @@
 """Module containing code pertaining to connecting with the server."""
 
+# Built-in library imports
 import asyncio
 import json
 import threading
-from typing import Callable, Coroutine
-from websockets import client as ws_client
+from time import time
+from typing import Callable, Coroutine, Literal
+from websockets import client as ws_client, exceptions as ws_exceptions
 
-from modules import GameInfo, GameStage
+# Local application imports
+from modules import GameInfo, GameStage, Message, FRAMERATE
+
+
+# Message timeout is half the frametime to allow for other
+# game process functions in the space of one game tick
+MESSAGE_TIMEOUT = 1 / FRAMERATE / 2
+
+
+async def send_json(websocket: ws_client.WebSocketClientProtocol, data: dict):
+    """Stringifies the JSON data and sends it to the server."""
+    stringified = json.dumps(data)
+    await websocket.send(stringified)
 
 
 class WebSocket:
@@ -17,7 +31,7 @@ class WebSocket:
         self._message_handler: Callable[[str | bytes], None] = None
         super().__init__()
 
-    def send_message(self, message: dict) -> None:
+    def send_message(self, message: dict | Literal["PING"]) -> None:
         """Sends the message object to the server through the active websocket connection."""
         self._data_to_send.append(message)
 
@@ -25,14 +39,14 @@ class WebSocket:
         """Sends all the data in the message stack."""
         while self._data_to_send:
             data = self._data_to_send.pop(0)
-            if data == "ping":
-                future = await websocket.ping()
-                print("Ping...")
-                await future
-                print("Pong!")
+            if not (isinstance(data, str) and data.upper() == "PING"):
+                # Handle regular message
+                send_json(websocket, data)
                 continue
-            stringified = json.dumps(data)
-            await websocket.send(stringified)
+            # Handle pinging the server
+            start_time = time()
+            await (await websocket.ping())
+            GameInfo.ping = round((time() - start_time) * 1000)  # Convert diff to ms
 
     def on_server_message(self, handler: Callable[[str | bytes], None]) -> None:
         """Used to decorate functions that will handle all server messages."""
@@ -41,6 +55,7 @@ class WebSocket:
     async def receive_message(self, data: str | bytes) -> None:
         """Called whenever the server sends a message over the websocket connection."""
         if self._message_handler is None:
+            print("ERROR: No server message handler set.")
             return
         coro = self._message_handler(data)
         if isinstance(coro, Coroutine):
@@ -66,14 +81,18 @@ def get_url(url: str, path: str, scheme: str = "ws") -> str:
     return url
 
 
-def _on_websocket_handshake() -> None:
+async def _on_websocket_handshake(websocket: ws_client.WebSocketClientProtocol) -> None:
     """Called when the websocket connection is established."""
     GameInfo.current_stage = GameStage.JOIN_ROOM
+    await send_json(websocket, {"type": "get_open_rooms"})
 
 
-def _on_websocket_error():
+def _on_websocket_error(connection_dropped: bool):
     """Called if there is an error connecting to the websocket."""
     GameInfo.current_stage = GameStage.WEBSOCKET_ERROR
+    Message.SERVER_ERROR = (
+        Message.CONNECTION_DROPPED if connection_dropped else Message.CONNECTION_FAILED
+    )
 
 
 async def make_websocket_connection(url: str):
@@ -82,19 +101,21 @@ async def make_websocket_connection(url: str):
 
     try:
         async with ws_client.connect(url) as websocket:
-            _on_websocket_handshake()
+            await _on_websocket_handshake(websocket)
             while GameInfo.current_stage != GameStage.ABORTED:
+                await session.send_all_data(websocket)
                 try:
                     # Only wait a small amount of time for message from server
-                    data = await asyncio.wait_for(websocket.recv(), 0.25)
+                    data = await asyncio.wait_for(websocket.recv(), MESSAGE_TIMEOUT)
                 except asyncio.TimeoutError:
                     pass
                 else:
                     # Handle the received message
                     await session.receive_message(data)
-                await session.send_all_data(websocket)
     except ConnectionRefusedError:
-        _on_websocket_error()
+        _on_websocket_error(False)
+    except ws_exceptions.ConnectionClosedError:
+        _on_websocket_error(True)
 
 
 def connect_to_websocket(url: str):

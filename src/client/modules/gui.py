@@ -230,12 +230,14 @@ class Label(BaseElement):
         """Blits the label to the game window."""
         self.blit_text(screen)
 
-    def assert_properties(self, **values) -> None:
-        """Sets all the given properties to the specified values, if they are not already so."""
+    def assert_properties(self, **values):
+        """Sets all the given properties to the specified values, if they are not already so.
+        Returns the object again, allowing for method chaining."""
         for key, value in values.items():
             if self.__getattribute__(key) == value:
                 continue
             self.__setattr__(key, value)
+        return self
 
 
 class Button(BaseElement):

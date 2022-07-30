@@ -9,6 +9,7 @@ SCREEN_WIDTH = 640
 SCREEN_HEIGHT = 480
 SCREEN_DIMS = (SCREEN_WIDTH, SCREEN_HEIGHT)
 
+FRAMERATE = 60  # FPS
 
 try:
     event_loop = asyncio.get_running_loop()
@@ -23,6 +24,9 @@ class Colour(Enum):
     RED = (255, 0, 0)
     GREEN = (0, 128, 0)
     BLUE = (0, 0, 255)
+    CYAN = (0, 255, 255)
+    PURPLE = (255, 0, 255)
+    YELLOW = (255, 255, 0)
     BLACK = (0,) * 3
     GREY1 = (16,) * 3
     GREY2 = (32,) * 3
@@ -77,3 +81,13 @@ class GameInfo:
 
     WEBSOCKET_URL = "localhost:8000"
     current_stage: GameStage = GameStage.LOADING
+    ping = -1  # ms
+
+
+class Message(str):
+    """Container for various messages that can be displayed to the client."""
+
+    LOADING = "Connecting to server..."
+    CONNECTION_FAILED = "Error connecting to server!"
+    CONNECTION_DROPPED = "Connection to server lost!"
+    SERVER_ERROR = CONNECTION_FAILED
