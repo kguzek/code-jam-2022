@@ -222,6 +222,12 @@ function move(cell) {
   const cell_el = document.getElementById(cell);
 
   if (cell_el.innerText == "*") {
+    console.log({
+      type: "move",
+      room_id: room_id,
+      sign: sign,
+      cell: cell,
+    });
     send_message({
       type: "move",
       room_id: room_id,
