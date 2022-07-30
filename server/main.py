@@ -18,7 +18,7 @@ def debug(message):
 
 
 app = FastAPI()
-app.mount("/client", StaticFiles(directory="client", html=True), name="client")
+app.mount("/client", StaticFiles(directory="../client", html=True), name="client")
 
 conn_manager = ConnectionManager()
 game_manager = GameManager()
