@@ -1,7 +1,6 @@
 // Create websocket connection.
 const WS_HOST = document.domain;
-
-const ws = new WebSocket(`ws://${WS_HOST}/ws`);
+const ws = new WebSocket(`ws://${WS_HOST}:8000/ws`);
 
 // Declare global variables.
 let room_id;
@@ -36,6 +35,16 @@ ws.onmessage = (message) => {
       // Update ui to in-room state and set info.
       go_to_room();
       set_info("Waiting for second player...");
+
+      break;
+
+    case "join_room":
+      // Set global variables.
+      room_id = data.room_id;
+      sign = data.sign;
+
+      // Update ui to in-room state and set info.
+      go_to_room();
 
       break;
 

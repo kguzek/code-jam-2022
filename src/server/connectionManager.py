@@ -22,6 +22,9 @@ class ConnectionManager:
 
         self.open_clients.append(client)
 
+        print(f"client {client} added to open_clients")
+        print(f"open_clients: {self.open_clients}")
+
     async def create_room(self, client: WebSocket):
         """This function creates room with one connected player and sends message
         with type "connected" to client that created it."""
@@ -41,12 +44,6 @@ class ConnectionManager:
                 "sign": "x",
             }
         )
-
-        # Remove client from open clients.
-        self.open_clients.remove(client)
-
-        # Update open rooms
-        await self.update_open_rooms()
 
     async def join_room(self, client: WebSocket, room_id: int):
         """This function connects client to room and removes it from list of open clients.
@@ -72,7 +69,7 @@ class ConnectionManager:
             )
             return (None, None)
 
-        # Connect client to room.
+        # Connect client to the room.
         if room["x"]:
             sign = "o"
         else:
@@ -83,14 +80,11 @@ class ConnectionManager:
         # Send message to connected client.
         await client.send_json(
             {
-                "type": "create_room",
+                "type": "join_room",
                 "room_id": room_id,
                 "sign": sign,
             }
         )
-
-        # Update open rooms.
-        await self.update_open_rooms()
 
         return (room["x"], room["o"])
 
@@ -145,6 +139,9 @@ class ConnectionManager:
     async def get_open_rooms(self):
         """This function returns list of all rooms that have only one connected player."""
 
+        print("get_open_rooms called")
+        print(f"all rooms: {self.rooms}")
+
         open_rooms = [
             room_id
             for room_id, room in self.rooms.items()
@@ -158,6 +155,10 @@ class ConnectionManager:
         that are not connected to room."""
 
         open_rooms = await self.get_open_rooms()
+
+        print(f"update_open_rooms called")
+        print(f"open_rooms: {open_rooms}")
+        print(f"open_clients: {self.open_clients}")
 
         for client in self.open_clients:
             await client.send_json(
