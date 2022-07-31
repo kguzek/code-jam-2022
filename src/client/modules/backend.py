@@ -125,8 +125,13 @@ async def make_websocket_connection(url: str):
                     # Handle the received message
                     await session.receive_message(data)
     except ConnectionRefusedError:
+        # Could not connect
         _on_websocket_error(False)
-    except ws_exceptions.ConnectionClosedError:
+    except (
+        ws_exceptions.ConnectionClosedError,
+        ws_exceptions.ConnectionClosedOK,
+    ):
+        # Connection was terminated
         _on_websocket_error(True)
 
 

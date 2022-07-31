@@ -23,5 +23,6 @@ def call_callbacks(
 
 
 def debug(*message) -> None:
+    """Prints the message if `DEBUG_MODE` is set to `True`."""
     if DEBUG_MODE:
         print(*message)

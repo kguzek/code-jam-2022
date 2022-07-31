@@ -90,6 +90,10 @@ class GameInfo:
     playercount = 0
     connected_room = None
     player_sign = None
+    game_started = False
+    countdown_started: float = -1
+    current_round: int = 0
+    board: list[list[str]] = None
 
 
 class Message(str):

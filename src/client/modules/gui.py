@@ -3,7 +3,8 @@
 from time import time
 from typing import Callable, Coroutine, Literal, Sequence
 import pygame
-from modules import Colour, Axis, SCREEN_DIMS, util
+from modules import Colour, Axis, SCREEN_DIMS, util, GameInfo, backend
+from modules.util import debug
 
 DEFAULT_DIMENSIONS = (300, 50)
 
@@ -24,6 +25,7 @@ class BaseElement:
         dims: tuple[int, int] = DEFAULT_DIMENSIONS,
         container: Sequence = None,
         menu: Sequence = None,
+        menus: Sequence[Sequence] = None,
         disabled: bool = False,
     ) -> None:
         self.label = label
@@ -54,6 +56,9 @@ class BaseElement:
         container.append(self)
         if menu is not None:
             menu.append(self)
+        if menus is not None:
+            for m in menus:
+                m.append(self)
         Menu.all_elements.append(self)
 
     def render_text(self) -> None:
@@ -71,7 +76,9 @@ class BaseElement:
         )
         screen.blit(self.text, text_pos)
 
-    def draw(self, screen: pygame.Surface, exclude_top: bool = False) -> None:
+    def draw(
+        self, screen: pygame.Surface, exclude_top: bool = False, width: int = 2
+    ) -> None:
         """Blits the element to the game window. For `BaseElement`, this means blitting a black
         rectangular outline. This method is meant to be overriden by subclasses, but calls to the
         it may still be made."""
@@ -87,10 +94,12 @@ class BaseElement:
                 Colour.BLACK.value,
                 closed=True,
                 points=(top_left, bottom_left, bottom_right, top_right),
-                width=2,
+                width=width,
             )
         else:
-            pygame.draw.rect(screen, Colour.BLACK.value, self.pos + self.dimensions, 2)
+            pygame.draw.rect(
+                screen, Colour.BLACK.value, self.pos + self.dimensions, width
+            )
 
     def get_coordinate(self, axis: Axis, fraction: float):
         """Gets the coordinate if we want the element to be the given fraction away from the
@@ -156,6 +165,7 @@ class BaseElement:
 
     def toggle_disabled_state(self) -> None:
         self.disabled = not self.disabled
+        # debug("Set", self.label, "to", "disabled" if self.disabled else "enabled")
         cursor = (
             pygame.SYSTEM_CURSOR_NO
             if self.is_hovered and self.disabled
@@ -526,6 +536,7 @@ class Dropdown(SelectableElement):
 
     def set_options(self, options: Sequence[tuple[int, str]]) -> None:
         """Updates the dropdown element's options."""
+        # debug("dropdown:", len(options), self.disabled)
         # Toggle the disabled state if it is incorrect
         if (len(options) > 0) == self.disabled:
             self.toggle_disabled_state()
@@ -544,11 +555,104 @@ class Dropdown(SelectableElement):
         return callback
 
 
+class Grid(BaseElement):
+    """Base class for the Tic-Tac-Toe 3x3 grid."""
+
+    CELL_SIZE = 90  # width/height, px
+
+    def __init__(self, label: str, pos: tuple[float, float], **kwargs) -> None:
+        dims = (self.CELL_SIZE * 3,) * 2
+        super().__init__(label, pos, dims=dims, container=[], **kwargs)
+        self.reset()
+
+    def reset(self):
+        """Called whenever the board has to be cleared."""
+
+        GameInfo.board = [["*"] * 3] * 3
+        self.child_cells = list(self._create_cell_elements())
+
+    def draw(self, screen: pygame.Surface) -> None:
+        for elem in self.child_cells:
+            elem.draw(screen)
+        return super().draw(screen)
+
+    def toggle_disabled_state(self) -> None:
+        super().toggle_disabled_state()
+        for elem in self.child_cells:
+            elem.toggle_disabled_state()
+            elem.font_colour = Colour.WHITE if elem.disabled else Colour.BLACK
+
+    def _create_cell_elements(self):
+        for row in range(3):
+            for col in range(3):
+                coords = (col, row)
+                cell_pos = tuple(
+                    pos + coords[i] * self.CELL_SIZE for i, pos in enumerate(self.pos)
+                )
+                # cell_x = self.pos[0] + col * self.CELL_SIZE
+                # cell_y = self.pos[1] + row * self.CELL_SIZE
+                cell = GridCell(
+                    (0, 0), dims=(self.CELL_SIZE,) * 2, disabled=True, row=row, col=col
+                )
+                cell.pos = cell_pos
+
+                yield cell
+
+
+class GridCell(BaseElement):
+    """Class for each cell of the `Grid` element."""
+
+    def __init__(
+        self,
+        pos: tuple[float, float],
+        /,
+        *,
+        dims: tuple[int, int],
+        row: int,
+        col: int,
+        **kwargs,
+    ) -> None:
+        self.row = row
+        self.col = col
+        super().__init__("*", pos, container=[], dims=dims, **kwargs)
+
+    def draw(self, screen: pygame.Surface) -> None:
+        colour = (
+            Colour.GREY3
+            if self.disabled
+            else Colour.GREY7
+            if self.is_hovered and self.label == "*"
+            else Colour.WHITE
+        )
+        pygame.draw.rect(screen, colour.value, self.pos + self.dimensions)
+        self.blit_text(screen)
+        return super().draw(screen, width=1)
+
+    def _on_mouse_down(self) -> None:
+        """Called whenever the user clicks a cell."""
+        super()._on_mouse_down()
+        if self.disabled:
+            return
+        debug(f"Clicked cell ({self.col}, {self.row})")
+        if self.label != "*":
+            return
+        self.label = GameInfo.player_sign
+        backend.session.send_message(
+            {
+                "type": "move",
+                "room_id": GameInfo.connected_room,
+                "cell": self.row * 3 + self.col,
+                "sign": GameInfo.player_sign,
+            }
+        )
+
+
 class Menu:
     """Container class that holds all UI elements."""
 
     all_elements: list[BaseElement] = []
     settings: list[BaseElement] = []
+    game: list[BaseElement] = []
 
     labels: list[Label] = []
     buttons: list[Button] = []
