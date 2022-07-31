@@ -1,8 +1,6 @@
 """This file contains definition of GameManager class."""
 
 
-from datetime import datetime
-from time import time
 from fastapi import WebSocket
 
 
