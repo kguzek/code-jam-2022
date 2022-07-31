@@ -9,7 +9,10 @@ from modules import DEBUG_MODE, event_loop
 def call_callbacks(
     callbacks: Callable[[], Coroutine | None] | list[Callable[[], Coroutine | None]]
 ):
-    """Calls each callback in the list, scheduling any returned coroutines as tasks
+    """
+    Calls the callbacks.
+
+    Calls each callback in the list, scheduling any returned coroutines as tasks
     to be awaited in the running game event loop.
 
     Arguments:

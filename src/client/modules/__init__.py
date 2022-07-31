@@ -4,6 +4,7 @@ import asyncio
 from enum import Enum
 from time import time
 from typing import Callable
+
 from pygame.font import Font
 
 SCREEN_WIDTH = 640

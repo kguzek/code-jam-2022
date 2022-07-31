@@ -30,7 +30,6 @@ async def root():
 @app.websocket("/ws")
 async def websocket_endpoint(client: WebSocket):
     """Main endpoint for websocket connection."""
-
     print("websocket_endpoint:")
 
     # Accept websocket connection and add connected client to list of open clients.

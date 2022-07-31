@@ -12,10 +12,12 @@ class GameManager:
         self.games = {}
 
     async def send_both(self, game: dict, message: dict):
+        """Send a message to both players."""
         for player in (game["player_x"], game["player_o"]):
             await player.send_json(message)
 
     async def start_round(self, game: dict, round: int):
+        """Starts the round"""
         await self.send_both(
             game,
             {
@@ -26,6 +28,7 @@ class GameManager:
         )
 
     def reset_board(self, room_id: int):
+        """Resets the board"""
         self.games[room_id]["board"] = [
             ["*", "*", "*"],
             ["*", "*", "*"],
@@ -33,6 +36,7 @@ class GameManager:
         ]
 
     async def start_game(self, room_id: int, player_x: WebSocket, player_o: WebSocket):
+        """Starts the game."""
         # Create game.
         self.games[room_id] = {
             "player_x": player_x,
@@ -50,9 +54,7 @@ class GameManager:
         await self.start_round(self.games[room_id], 1)
 
     async def move(self, room_id: int, sign: str, cell: int):
-        """This function updates the board and sends
-        message with type 'update_board' to both players."""
-
+        """This function updates the board and sends message with type 'update_board' to both players."""
         game = self.games[room_id]
         board = game["board"]
 
@@ -144,6 +146,7 @@ class GameManager:
         return (None, None)
 
     def check_draw_round(self, board):
+        """Check if it is a draw round."""
         print("draw", board)
 
         return all([row.count("*") == 3 for row in board])
