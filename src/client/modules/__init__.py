@@ -56,7 +56,7 @@ class Font:  # pylint:disable=too-few-public-methods
         self.consolas = font_from_name("Consolas", 17)
         self.reemkufiregular = font_from_name("reemkufiregular", 13)
 
-        self.seguisym = font_from_file("data/seguisym.ttf", 23)
+        self.seguisym = font_from_file("src/client/data/seguisym.ttf", 23)
 
 
 class GameStage(Enum):
