@@ -56,9 +56,6 @@ ws.onmessage = (message) => {
       set_current_room_id(current_room_id);
       set_your_sign(your_sign);
 
-      show_game_info();
-      show_board();
-
       break;
 
     case "join_room_error":
@@ -69,7 +66,7 @@ ws.onmessage = (message) => {
 
     case "start_countdown":
       show_board();
-      reset_board();
+      show_game_info();
 
       is_allowed_to_move = false;
 
@@ -88,6 +85,7 @@ ws.onmessage = (message) => {
       }, 1000);
       setTimeout(() => {
         is_allowed_to_move = true;
+        reset_board();
         set_info("GO!");
       }, 3000);
 
@@ -120,7 +118,7 @@ ws.onmessage = (message) => {
 
       break;
 
-    case "win":
+    case "win_round":
       let cells_color;
 
       if (data.sign === your_sign) {
