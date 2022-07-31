@@ -1,6 +1,5 @@
 from fastapi import WebSocket
 from random import randint
-from starlette.websockets import WebSocketState
 
 
 class ConnectionManager:
@@ -17,13 +16,14 @@ class ConnectionManager:
 
     async def connect(self, client: WebSocket):
         """This function accepts websocket connection and adds connected client to list of open clients."""
+        print("conn_manager.connect:")
 
         await client.accept()
 
         self.open_clients.append(client)
 
-        print(f"client {client} added to open_clients")
-        print(f"open_clients: {self.open_clients}")
+        print(f"    Client {client} added to open_clients")
+        print(f"    open_clients: {self.open_clients}")
 
     async def create_room(self, client: WebSocket):
         """This function creates room with one connected player and sends message
@@ -96,10 +96,10 @@ class ConnectionManager:
         if client in self.open_clients:
             self.open_clients.remove(client)
 
-            print(f"\t Client removed from open_clients")
+            print(f"     Client removed from open_clients")
 
-        print(f"\t Client {client} disconnected")
-        print(f"\t open_clients: {self.open_clients}")
+        print(f"     Client {client} disconnected")
+        print(f"     open_clients: {self.open_clients}")
 
     async def remove_client_from_room(self, client: WebSocket):
         """This function removes the player from the room."""
@@ -117,13 +117,13 @@ class ConnectionManager:
                 sign = "o"
                 break
         else:
-            print(f"\t Client {client} is not in the room")
+            print(f"     Client {client} is not in the room")
 
             return
 
         # Remove the player from the room.
         self.rooms[room_id][sign] = None
-        print(f"\t Client {client} removed from the room")
+        print(f"     Client {client} removed from the room")
 
         # Delete the room if it is empty and update open rooms.
         room = self.rooms[room_id]
@@ -157,8 +157,7 @@ class ConnectionManager:
     async def get_open_rooms(self):
         """This function returns list of all rooms that have only one connected player."""
 
-        print("get_open_rooms called")
-        print(f"all rooms: {self.rooms}")
+        print("conn_manager.get_open_rooms:")
 
         open_rooms = [
             room_id
@@ -166,17 +165,20 @@ class ConnectionManager:
             if None in [room["x"], room["o"]]
         ]
 
+        print(f"    rooms: {self.rooms}")
+        print(f"    open_rooms: {open_rooms}")
+
         return open_rooms
 
     async def update_open_rooms(self):
         """This function sends information about new rooms to clients
         that are not connected to room."""
 
+        print(f"update_open_rooms:")
+
         open_rooms = await self.get_open_rooms()
 
-        print(f"update_open_rooms called")
-        print(f"open_rooms: {open_rooms}")
-        print(f"open_clients: {self.open_clients}")
+        print(f"    open_clients: {self.open_clients}")
 
         for client in self.open_clients:
             await client.send_json(

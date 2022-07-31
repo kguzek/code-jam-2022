@@ -16,15 +16,15 @@
       body.in-room div#not-in-room {
         display: none;
       }
-      #board.show {
-        display: table;
+      #current_round,
+      #board {
+        display: none;
       }
       #board-cell {
         position: relative;
         width: 50%;
       }
       #board {
-        display: none;
         margin-top: 10px;
         width: 100px;
         background-color: white;
@@ -62,9 +62,10 @@
       <button onclick="create_room()">Create room</button>
     </div>
     <div id="in-room">
-      <p>You are in room <span id="current_room_id"></span></p>
-      <p>Your sign: <span id="your_sign"></span></p>
-      <p>Info: <span id="info"></span></p>
+      <p id="current_room_id"></p>
+      <p id="your_sign"></p>
+      <p id="current_round"></p>
+      <p id="info"></p>
       <button onclick="leave_room()">Leave room</button>
     </div>
     <table id="board">
@@ -85,5 +86,7 @@
       </tr>
     </table>
   </body>
+  <script src="ui.js"></script>
+  <script src="callbacks.js"></script>
   <script src="index.js"></script>
 </html>

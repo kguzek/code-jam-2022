@@ -30,6 +30,8 @@ async def root():
 async def websocket_endpoint(client: WebSocket):
     """Main endpoint for websocket connection."""
 
+    print("websocket_endpoint:")
+
     # Accept websocket connection and add connected client to list of open clients.
     await conn_manager.connect(client)
 
@@ -39,16 +41,12 @@ async def websocket_endpoint(client: WebSocket):
             message = await client.receive_text()
             message = loads(message)
 
-            print(f"Received message: {message}")
+            print(f"    Received message: {message}")
 
             match message["type"]:
                 # If message type is "get_open_rooms":
                 case "get_open_rooms":
                     open_rooms = await conn_manager.get_open_rooms()
-
-                    print(f"Received get_open_rooms request")
-                    print(f"open_rooms: {open_rooms}")
-                    print(f"open_clients: {conn_manager.open_clients}")
 
                     await client.send_json(
                         {
@@ -57,18 +55,22 @@ async def websocket_endpoint(client: WebSocket):
                         }
                     )
 
-                # If client wants to connect to the open room:
+                # If client sent request to join open room:
                 case "join_room":
+                    # Get websocket objects representing connected players.
                     player_x, player_o = await conn_manager.join_room(
                         client, message["room_id"]
                     )
 
+                    # Return from websocket_endpoint function if new player was not connected sucessfully.
                     if (player_x, player_o) == (None, None):
                         return
 
+                    # Remove client from open_clients
                     conn_manager.open_clients.remove(client)
-                    print(f"Client {client} joined a room")
-                    print(f"open_clients: {conn_manager.open_clients}")
+
+                    print(f"    Client {client} joined a room")
+                    print(f"    open_clients: {conn_manager.open_clients}")
 
                     # Update open rooms.
                     await conn_manager.update_open_rooms()

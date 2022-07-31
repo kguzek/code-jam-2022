@@ -1,6 +1,8 @@
 """This file contains definition of GameManager class."""
 
 
+from datetime import datetime
+from time import time
 from fastapi import WebSocket
 
 
@@ -11,28 +13,36 @@ class GameManager:
         # List of all games.
         self.games = {}
 
+    async def send_both(self, game: dict, message: dict):
+        for player in (game["player_x"], game["player_o"]):
+            await player.send_json(message)
+
+    async def start_round(self, game: dict, round: int):
+        await self.send_both(
+            game,
+            {
+                "type": "start_countdown",
+                "round": round,
+                "end_countdown_time": "",
+            },
+        )
+
     async def start_game(self, room_id: int, player_x: WebSocket, player_o: WebSocket):
+        # Create game.
         self.games[room_id] = {
-            "x": player_x,
-            "o": player_o,
+            "player_x": player_x,
+            "player_o": player_o,
             "board": [
                 ["*", "*", "*"],
                 ["*", "*", "*"],
                 ["*", "*", "*"],
             ],
+            "x_wins": 0,
+            "o_wins": 0,
+            "played_rounds": 0,
         }
 
-        await player_x.send_json(
-            {
-                "type": "start_game",
-            }
-        )
-
-        await player_o.send_json(
-            {
-                "type": "start_game",
-            }
-        )
+        await self.start_round(self.games[room_id], 1)
 
     async def move(self, room_id: int, sign: str, cell: int):
         """This function updates the board and sends
@@ -47,26 +57,26 @@ class GameManager:
         board[cell_row][cell_col] = sign
 
         # Send "update_board" message.
-        for player in (game["x"], game["o"]):
-            await player.send_json(
-                {
-                    "type": "update_board",
-                    "board": board,
-                }
-            )
+        await self.send_both(
+            game,
+            {
+                "type": "update_board",
+                "board": board,
+            },
+        )
 
         # Check for win.
         win = self.check_win(board)
 
         if win:
-            for player in (game["x"], game["o"]):
-                await player.send_json(
-                    {
-                        "type": "win",
-                        "sign": win[0],
-                        "cells": win[1],
-                    }
-                )
+            await self.send_both(
+                game,
+                {
+                    "type": "win",
+                    "sign": win[0],
+                    "cells": win[1],
+                },
+            )
 
         # Check for draw.
 
