@@ -33,7 +33,7 @@ async def websocket_endpoint(client: WebSocket):
             message = await client.receive_json()
             print(f"Received message: {message}")
 
-            match message["type"]:
+            match message["type"]:  # noqa: E999
                 # If message type is "get_open_rooms":
                 case "update_open_rooms":
                     open_rooms = await conn_manager.get_open_rooms()

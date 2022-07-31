@@ -109,7 +109,7 @@ class ConnectionManager:
 
         # Delete the room if it is empty and update open rooms.
         room = self.rooms[room_id]
-        if room["x"] == None and room["o"] == None:
+        if room["x"] is None and room["o"] is None:
             del self.rooms[room_id]
         else:
             if sign == "x":
