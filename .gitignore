@@ -33,5 +33,4 @@ build/
 # MacOS
 .DS_Store
 
-# Testing
 testing

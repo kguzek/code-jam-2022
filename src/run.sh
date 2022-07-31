@@ -1,10 +1,8 @@
 #!/bin/bash
-git add --all
-git commit --no-verify -m "Dev"
-git push heroku simple-server:main
-
-
-heroku logs --app online-tic-tac-toe-test --tail
-
-pkill gunicorn
-gunicorn -w 1 -k uvicorn.workers.UvicornWorker --chdir src server.main:app
+if [[ $1 == "--reload" ]]; then
+  echo "Started server in development mode!"
+  uvicorn server.main:app --host localhost --port 8000 --reload --reload-dir ./server
+else
+  echo "Started server in production mode!"
+  uvicorn server.main:app --host localhost --port 8000
+fi
