@@ -1,2 +1,10 @@
 #!/bin/bash
-uvicorn server.main:app --host 0.0.0.0 --port 8000
+git add --all
+git commit --no-verify -m "Dev"
+git push heroku simple-server:main
+
+
+heroku logs --app online-tic-tac-toe-test --tail
+
+pkill gunicorn
+gunicorn -w 1 -k uvicorn.workers.UvicornWorker --chdir src server.main:app
