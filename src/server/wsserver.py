@@ -3,8 +3,8 @@
 import re
 from asyncio import gather
 from enum import Enum
-from uuid import uuid4
 from typing import List
+from uuid import uuid4
 
 from fastapi import WebSocket
 

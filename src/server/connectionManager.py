@@ -1,5 +1,6 @@
-from fastapi import WebSocket
 from random import randint
+
+from fastapi import WebSocket
 from starlette.websockets import WebSocketState
 
 

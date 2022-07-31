@@ -3,9 +3,9 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from server.gameManager import GameManager
-from server.connectionManager import ConnectionManager
 
+from server.connectionManager import ConnectionManager
+from server.gameManager import GameManager
 
 app = FastAPI()
 app.mount("/client", StaticFiles(directory="client", html=True), name="client")
