@@ -3,7 +3,7 @@
 
 from typing import Callable, Coroutine, Iterable
 
-from modules import event_loop
+from modules import event_loop, DEBUG_MODE
 
 
 def call_callbacks(
@@ -20,3 +20,8 @@ def call_callbacks(
         if not isinstance(coro, Coroutine):
             continue
         event_loop.create_task(coro)
+
+
+def debug(*message) -> None:
+    if DEBUG_MODE:
+        print(*message)

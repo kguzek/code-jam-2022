@@ -2,7 +2,6 @@
 
 import asyncio
 import json
-from random import random
 from typing import Sequence
 import pygame
 
@@ -18,6 +17,7 @@ from modules import (
     Message,
 )
 from modules.gui import Label, BaseElement, Button, Menu, Dropdown
+from modules.util import debug
 
 pygame.init()
 pygame.key.set_repeat(500, 30)
@@ -31,17 +31,17 @@ CLOCK = pygame.time.Clock()
 
 
 # REGION Register menu elements
-dropdown = Dropdown(
-    "Select room",
-    (0.5, 2 / 7),
-    icon_font=FONT.reemkufiregular,
-    options=["Remote server", "Locally-hosted server"],
-    menu=Menu.settings,
-)
+lbl_room_info = Label("Open rooms: 0", (0.5, 5 / 28), menu=Menu.settings)
 btn_join_room = Button("Join room", (0.5, 11 / 28), disabled=True, menu=Menu.settings)
 btn_create_room = Button("Create room", (0.5, 17 / 28), menu=Menu.settings)
 btn_retry_connection = Button("Retry connnection", (0.5, 9 / 14))
 lbl_current_info = Label("[ARBITRARY MESSAGE]", (0.5, 0.5))
+dropdown_room = Dropdown(
+    "Select room",
+    (0.5, 2 / 7),
+    icon_font=FONT.reemkufiregular,
+    menu=Menu.settings,
+)
 # ipt_server_url = TextInput(
 #     "Server URL",
 #     (0.5, 5 / 14),
@@ -57,12 +57,10 @@ lbl_current_info = Label("[ARBITRARY MESSAGE]", (0.5, 0.5))
 
 @btn_join_room.on_mouse("down")
 def join_room():
-    old_label = btn_join_room.label
-    btn_join_room.toggle_disabled_state()
-    btn_join_room.label = "Connecting to room..."
+    backend.session.send_message(
+        {"type": "connect", "room_id": dropdown_room.selected_option}
+    )
     GameInfo.current_stage = GameStage.LOADING
-    btn_join_room.toggle_disabled_state()
-    btn_join_room.label = old_label
 
 
 @btn_create_room.on_mouse("down")
@@ -82,54 +80,82 @@ def create_room():
 # ENDREGION
 
 
+def connect_to_room(data: dict) -> None:
+    room_id = data.get("room_id")
+    lbl_room_info.label = f"Connected to room {room_id}"
+    sign = data.get("sign")
+    GameInfo.current_stage = (
+        GameStage.GAME_IN_PROGRESS if sign == "o" else GameStage.WAITING_FOR_PLAYER
+    )
+
+
 # REGION Register websocket events
 @backend.session.on_server_message
 def on_server_message(data: str | bytes) -> None:
     if isinstance(data, bytes):
-        data = bytes.decode()
+        data: str = bytes.decode()
     try:
         parsed = json.loads(data)
     except (TypeError, json.decoder.JSONDecodeError):
         print("Invalid server message:", data)
         return
     else:
-        data = parsed
+        data: dict = parsed
+    data_type = data.get("type")
+    if data_type != "log":
+        debug(f"CLIENT: Received message '{data}'")
     match data.get("type"):
         case "update_open_rooms":
             open_rooms = data.get("open_rooms")
-            print("Open rooms:", open_rooms)
+            options = tuple((room, f"Room {room}") for room in open_rooms)
+            dropdown_room.set_options(options)
+            lbl_room_info.label = f"Open rooms: {len(open_rooms)}"
         case "connected":
-            room_id = data.get("room_id")
-            sign = data.get("sign")
-            print("YOU ARE:", sign, "in room", room_id)
+            connect_to_room(data)
+        case "playercount":
+            GameInfo.playercount = data.get("playercount")
         case "log":
-            print("SERVER:", data)
+            debug("SERVER:", data.get("body"))
         case _:
-            print("Received unknown server message:", data)
+            debug("Received unknown server message:", data)
 
 
 @btn_retry_connection.on_mouse("down")
 def connect_to_server() -> None:
     """Instructs the program to start a thread to create the websocket connection."""
-    backend.connect_to_websocket(GameInfo.WEBSOCKET_URL)
+    btn_retry_connection.toggle_disabled_state()
+
+    backend.connect_to_websocket(
+        GameInfo.WEBSOCKET_URL, btn_retry_connection.toggle_disabled_state
+    )
+
+
+@dropdown_room.on_selection_change
+def select_room() -> None:
+    if btn_join_room.disabled or dropdown_room.selected_option is None:
+        btn_join_room.toggle_disabled_state()
 
 
 # ENDREGION
 
 
 def tick():
-    """Performs logic on the game window."""
+    """Performs logic on the game window. Returns a tuple containing a list of all visible elements
+    and a boolean indicating if the left mouse button was clicked this frame."""
     mouse_pos = pygame.mouse.get_pos()
     # Determine which buttons were pressed
-    clicked = pygame.mouse.get_pressed(num_buttons=3)
+    mouse_btns = pygame.mouse.get_pressed(num_buttons=3)
+    # Determine which buttons were pressed this frame
+    new_mouse_btns = (False,) * 3 if currently_clicked else mouse_btns
 
+    # Determine which UI elements to display
     match GameInfo.current_stage:
         case GameStage.JOIN_ROOM:
-            visible_elems = Menu.settings + [
+            visible_elems = [
                 lbl_current_info.assert_properties(label="or", font_colour=Colour.WHITE)
-            ]
+            ] + Menu.settings
         case GameStage.WAITING_FOR_PLAYER | GameStage.GAME_IN_PROGRESS:
-            visible_elems = []
+            visible_elems = [lbl_room_info]
         case GameStage.WEBSOCKET_ERROR:
             visible_elems = [
                 lbl_current_info.assert_properties(
@@ -145,9 +171,18 @@ def tick():
             ]
         case _:
             visible_elems = []
+    # Add the child elems of all dropdown elements
+    option_elems = []
     for elem in visible_elems:
-        elem.check_click(mouse_pos, clicked)
-    return visible_elems
+        if isinstance(elem, Dropdown) and elem.selected:
+            option_elems += elem.option_elems
+    visible_elems += option_elems
+    # Loop reversed list since last-most elements are rendered at the top of the screen
+    for elem in visible_elems[::-1]:
+        if elem.check_click(mouse_pos, new_mouse_btns):
+            # Don't check other elements in case of overlap
+            mouse_pos = (-1, -1)
+    return visible_elems, mouse_btns[0]
 
 
 def render(visible_elems: Sequence[BaseElement]):
@@ -155,34 +190,36 @@ def render(visible_elems: Sequence[BaseElement]):
     # Fill with white
     SCREEN.fill(Colour.GREY2.value)
 
-    def render_fps():
-        """Blit the current FPS to the screen."""
-        fps = min(CLOCK.get_fps(), FRAMERATE)
-        message = f"{fps:.1f} FPS"
-        fps_percentage = fps / FRAMERATE
-        amount_green = round(fps_percentage * 255)
-        fps_colour = (255 - amount_green, amount_green, 0)
-        fps_surface = FONT.nimbus_sans.render(message, True, fps_colour)
-        padding = 2  # space between the text and the screen edge, px
-        SCREEN.blit(fps_surface, (padding,) * 2)
+    padding = 2  # space between the text and the screen edge, px
 
-    def render_ping():
-        """Blits the server latency to the screen."""
-        if GameInfo.ping == -1:
-            message = "DISCONNECTED"
-            ping_colour = Colour.YELLOW
-        else:
-            message = f"{GameInfo.ping} ms"
-            ping_colour = Colour.CYAN
-        ping_surface = FONT.nimbus_sans.render(message, True, ping_colour.value)
-        padding = 2  # space between the text and the screen edge, px
-        x_pos = SCREEN_DIMS[0] - ping_surface.get_width() - padding
-        SCREEN.blit(ping_surface, (x_pos, padding))
+    # Blit the current FPS to the screen
+    fps = min(CLOCK.get_fps(), FRAMERATE)
+    message = f"{fps:.1f} FPS"
+    fps_percentage = fps / FRAMERATE
+    amount_green = round(fps_percentage * 255)
+    fps_colour = (255 - amount_green, amount_green, 0)
+    fps_surface = FONT.nimbus_sans.render(message, True, fps_colour)
+    SCREEN.blit(fps_surface, (padding,) * 2)
+
+    # Blit the playercount to the screen
+    message = f"Connected players: {GameInfo.playercount}"
+    players_surface = FONT.nimbus_sans.render(message, True, Colour.GREY7.value)
+    x_pos = SCREEN_DIMS[0] - players_surface.get_width() - padding
+    SCREEN.blit(players_surface, (x_pos, padding))
+
+    # Blit the server latency to the screen
+    if GameInfo.ping == -1:
+        message = "DISCONNECTED"
+        ping_colour = Colour.YELLOW
+    else:
+        message = f"{GameInfo.ping} ms"
+        ping_colour = Colour.CYAN
+    ping_surface = FONT.nimbus_sans.render(message, True, ping_colour.value)
+    x_pos -= ping_surface.get_width() + 7
+    SCREEN.blit(ping_surface, (x_pos, padding))
 
     for elem in visible_elems:
         elem.draw(SCREEN)
-    render_fps()
-    render_ping()
     pygame.display.update()
 
 
@@ -194,6 +231,9 @@ def run_once(loop: asyncio.AbstractEventLoop):
 
 # Connect to the websocket
 connect_to_server()
+
+# Boolean to keep track of mouse click events
+currently_clicked = False
 
 # Main game loop
 try:
@@ -215,7 +255,8 @@ try:
                         if not text_input.selected:
                             continue
                         text_input.keydown(event)
-        render(tick())
+        visible_elems, currently_clicked = tick()
+        render(visible_elems)
 except KeyboardInterrupt:
     pass
 

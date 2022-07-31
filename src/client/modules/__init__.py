@@ -11,6 +11,8 @@ SCREEN_DIMS = (SCREEN_WIDTH, SCREEN_HEIGHT)
 
 FRAMERATE = 60  # FPS
 
+DEBUG_MODE = True
+
 try:
     event_loop = asyncio.get_running_loop()
 except RuntimeError:
@@ -82,12 +84,13 @@ class GameInfo:
     WEBSOCKET_URL = "localhost:8000"
     current_stage: GameStage = GameStage.LOADING
     ping = -1  # ms
+    playercount = 0
 
 
 class Message(str):
     """Container for various messages that can be displayed to the client."""
 
-    LOADING = "Connecting to server..."
+    LOADING = "Connecting to room..."
     CONNECTION_FAILED = "Error connecting to server!"
     CONNECTION_DROPPED = "Connection to server lost!"
     SERVER_ERROR = CONNECTION_FAILED

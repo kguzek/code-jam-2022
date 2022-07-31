@@ -5,7 +5,7 @@ from typing import Callable, Coroutine, Literal, Sequence
 import pygame
 from modules import Colour, Axis, SCREEN_DIMS, util
 
-DEFAULT_DIMS = (300, 50)
+DEFAULT_DIMENSIONS = (300, 50)
 
 
 class BaseElement:
@@ -21,7 +21,7 @@ class BaseElement:
         *,
         font: pygame.font.Font = None,
         font_colour: Colour = Colour.WHITE,
-        dims: tuple[int, int] = DEFAULT_DIMS,
+        dims: tuple[int, int] = DEFAULT_DIMENSIONS,
         container: Sequence = None,
         menu: Sequence = None,
         disabled: bool = False,
@@ -71,17 +71,35 @@ class BaseElement:
         )
         screen.blit(self.text, text_pos)
 
-    def draw(self, screen: pygame.Surface) -> None:
+    def draw(self, screen: pygame.Surface, exclude_top: bool = False) -> None:
         """Blits the element to the game window. For `BaseElement`, this means blitting a black
         rectangular outline. This method is meant to be overriden by subclasses, but calls to the
         it may still be made."""
         # Element outline
-        pygame.draw.rect(screen, Colour.BLACK.value, self.pos + self.dimensions, 2)
+        if exclude_top:
+            top_left = self.pos
+            bottom_left = (self.pos[0], self.pos[1] + self.dimensions[1])
+            bottom_right = tuple(self.pos[i] + self.dimensions[i] for i in range(2))
+            top_right = (self.pos[0] + self.dimensions[0], self.pos[1])
+
+            pygame.draw.lines(
+                screen,
+                Colour.BLACK.value,
+                closed=True,
+                points=(top_left, bottom_left, bottom_right, top_right),
+                width=2,
+            )
+        else:
+            pygame.draw.rect(screen, Colour.BLACK.value, self.pos + self.dimensions, 2)
 
     def get_coordinate(self, axis: Axis, fraction: float):
         """Gets the coordinate if we want the element to be the given fraction away from the
         screen's edge.
         """
+        if not 0 <= fraction <= 1:
+            raise ValueError(
+                f"Invalid fraction provided for element position: {fraction}"
+            )
         return round((SCREEN_DIMS[axis.value] - self.dimensions[axis.value]) * fraction)
 
     def centre(self, axis: Axis = Axis.BOTH) -> None:
@@ -107,7 +125,10 @@ class BaseElement:
 
     def check_click(
         self, mouse_pos: tuple[int, int], mouse_btns: tuple[bool, bool, bool]
-    ):
+    ) -> bool:
+        """Checks if the mouse position impedes on the element boundaries.
+        Returns a boolean indicating if the mouse is currently hovering over the element.
+        Responsible for emitting the `on_hover_change()` and `on_mouse()` listener events."""
         is_hovered = self.check_collision(mouse_pos)
         if is_hovered != self.is_hovered:
             self.on_hover_change(is_hovered)
@@ -121,6 +142,7 @@ class BaseElement:
                 # User just released mouse button
                 self._on_mouse_up()
         self.is_pressed = is_pressed
+        return is_hovered
 
     def on_hover_change(self, is_hovered: bool) -> None:
         """Called once when the user cursor either enters or leaves the element boundaries."""
@@ -169,8 +191,11 @@ class BaseElement:
 class SelectableElement(BaseElement):
     """Abstract element for selectable elements to inherit from."""
 
-    def __init__(self, *args, **kwargs) -> None:
+    def __init__(
+        self, *args, inverse_selection_on_click: bool = False, **kwargs
+    ) -> None:
         self.selected = False
+        self.inverse_selection_on_click = inverse_selection_on_click
         self._on_select_callbacks: list[Callable[[], Coroutine | None]] = []
         super().__init__(*args, **kwargs)
 
@@ -201,18 +226,25 @@ class SelectableElement(BaseElement):
 
     def check_click(
         self, mouse_pos: tuple[int, int], mouse_btns: tuple[bool, bool, bool]
-    ):
+    ) -> bool:
         super().check_click(mouse_pos, mouse_btns)
+        # Deselect if clicked out of region
         if mouse_btns[0] and not self.is_hovered and self.selected:
             self._set_selected(False)
+        return self.is_hovered
 
     def _set_selected(self, selected: bool) -> None:
         self.selected = selected
         util.call_callbacks(self._on_select_callbacks)
 
     def _on_mouse_down(self) -> None:
-        if not self.disabled and not self.selected:
-            self._set_selected(True)
+        if not self.disabled:
+            selected = not self.selected
+            if self.inverse_selection_on_click:
+                self._set_selected(selected)
+            elif selected:
+                self._set_selected(True)
+
         return super()._on_mouse_down()
 
     def on_select_change(self, callback: Callable[[], Coroutine | None]):
@@ -396,6 +428,29 @@ class TextInput(SelectableElement):
 
 
 # TODO: Complete dropdown box + dropdown box option elements
+class Option(BaseElement):
+    """Child element that is displayed for each possible option of a `Dropdown` element."""
+
+    def __init__(
+        self,
+        label: str,
+        pos: tuple[float, float],
+        value: str,
+        *args,
+        **kwargs,
+    ):
+        self.value = value
+        super().__init__(label, (0, 0), *args, container=[], **kwargs)
+        self.pos = pos
+
+    def draw(self, screen: pygame.Surface) -> None:
+        """Blits the dropdown option to the game window."""
+        colour = Colour.LIGHTBLUE if self.is_hovered else Colour.GREY7
+        pygame.draw.rect(screen, colour.value, self.pos + self.dimensions)
+        self.blit_text(screen)
+        super().draw(screen, exclude_top=True)
+
+
 class Dropdown(SelectableElement):
     """Dropdown box that reveals an arbitrary number of selectable `Option` elements."""
 
@@ -406,26 +461,55 @@ class Dropdown(SelectableElement):
         /,
         *,
         icon_font: pygame.font.Font,
-        options=[],
+        options: Sequence[tuple[int, str]] = [],
         **kwargs,
     ):
+        self.placeholder_label = label
         self.selected_option = None
-        self.options = options
         self.icon = icon_font.render("V", True, Colour.WHITE.value)
+        self._selection_callbacks: list[Callable[[], Coroutine | None]] = []
         super().__init__(
             label,
             pos,
+            inverse_selection_on_click=True,
             font_colour=Colour.BLACK,
-            dims=(DEFAULT_DIMS[0], DEFAULT_DIMS[1] * 2 // 3),
+            dims=(DEFAULT_DIMENSIONS[0], DEFAULT_DIMENSIONS[1] * 2 // 3),
             container=Menu.dropdowns,
             **kwargs,
         )
+        self.set_options(options)
+
+    def _create_option(self, index: int, option: tuple[int, str]) -> Option:
+        """Creates a child option element."""
+        # Calculate absolute Y position using the index of the element and its dimensions
+        elem_y = self.pos[1] + self.dimensions[1] - 2 + DEFAULT_DIMENSIONS[1] * index
+        option_key, option_desc = option
+        elem = Option(
+            option_desc,
+            (self.pos[0], elem_y),
+            dims=(DEFAULT_DIMENSIONS[0] - self.dimensions[1], DEFAULT_DIMENSIONS[1]),
+            font_colour=Colour.BLACK,
+            value=option_key,
+        )
+
+        def select_option():
+            """Event handler for when a dropdown option is selected."""
+            self.selected_option, self.label = option
+            # Collapse the dropdown menu
+            self._set_selected(False)
+            util.call_callbacks(self._selection_callbacks)
+
+        elem.on_mouse("down")(select_option)
+
+        return elem
 
     def draw(self, screen: pygame.Surface) -> None:
         """Blits the dropdown box to the game window."""
         dimensions = self.pos + self.dimensions
         # Element background
-        bg_colour = Colour.LIGHTBLUE if self.is_hovered else Colour.GREY7
+        bg_colour = (
+            Colour.LIGHTBLUE if self.is_hovered and not self.selected else Colour.GREY7
+        )
         pygame.draw.rect(screen, bg_colour.value, dimensions)
         self.blit_text(screen, -self.dimensions[1])
         self.blit_detail(
@@ -435,23 +519,25 @@ class Dropdown(SelectableElement):
             Colour.BLACK,
         )
         super().draw(screen)
+        if self.selected:
+            for elem in self.option_elems:
+                elem.draw(screen)
 
+    def set_options(self, options: Sequence[tuple[int, str]]) -> None:
+        """Updates the dropdown element's options."""
+        if self.selected_option not in options:
+            self.label = self.placeholder_label
+        self.options = tuple(options)
+        self.option_elems = [
+            self._create_option(*option) for option in enumerate(self.options)
+        ]
 
-class Option(BaseElement):
-    """Child element that is displayed for each possible option of a `Dropdown` element."""
-
-    def __init__(self, parent: Dropdown, value: str, *args, **kwargs):
-        self.parent = parent
-        self.value = value
-        super().__init__(*args, container=[], **kwargs)
-
-    def draw(self, screen: pygame.Surface) -> None:
-        """Blits the dropdown option to the game window."""
-        super().draw(screen)
-
-    def _on_mouse_down(self) -> None:
-        self.parent.selected_option = self.value
-        return super()._on_mouse_down()
+    def on_selection_change(
+        self, callback: Callable[[], Coroutine | None]
+    ) -> Callable[[], Coroutine | None]:
+        """Can be used to decorate functions that will be called when an option is selected."""
+        self._selection_callbacks.append(callback)
+        return callback
 
 
 class Menu:

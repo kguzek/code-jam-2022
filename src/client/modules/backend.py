@@ -29,6 +29,7 @@ class WebSocket:
     def __init__(self):
         self._data_to_send: list[dict] = []
         self._message_handler: Callable[[str | bytes], None] = None
+        self.on_handshake: Callable[..., None] | None = None
         super().__init__()
 
     def send_message(self, message: dict | Literal["PING"]) -> None:
@@ -41,7 +42,7 @@ class WebSocket:
             data = self._data_to_send.pop(0)
             if not (isinstance(data, str) and data.upper() == "PING"):
                 # Handle regular message
-                send_json(websocket, data)
+                await send_json(websocket, data)
                 continue
             # Handle pinging the server
             start_time = time()
@@ -84,7 +85,10 @@ def get_url(url: str, path: str, scheme: str = "ws") -> str:
 async def _on_websocket_handshake(websocket: ws_client.WebSocketClientProtocol) -> None:
     """Called when the websocket connection is established."""
     GameInfo.current_stage = GameStage.JOIN_ROOM
-    await send_json(websocket, {"type": "get_open_rooms"})
+    await asyncio.gather(
+        send_json(websocket, {"type": "get_open_rooms"}),
+        send_json(websocket, {"type": "get_playercount"}),
+    )
 
 
 def _on_websocket_error(connection_dropped: bool):
@@ -93,6 +97,8 @@ def _on_websocket_error(connection_dropped: bool):
     Message.SERVER_ERROR = (
         Message.CONNECTION_DROPPED if connection_dropped else Message.CONNECTION_FAILED
     )
+    if session.on_handshake is not None:
+        session.on_handshake()
 
 
 async def make_websocket_connection(url: str):
@@ -118,8 +124,9 @@ async def make_websocket_connection(url: str):
         _on_websocket_error(True)
 
 
-def connect_to_websocket(url: str):
+def connect_to_websocket(url: str, callback: Callable[..., None]):
     """Creates a thread to connect to the server websocket."""
     coroutine: Coroutine[any, any, None] = make_websocket_connection(url)
     thread = threading.Thread(target=asyncio.run, args=(coroutine,))
     thread.start()
+    session.on_handshake = callback
