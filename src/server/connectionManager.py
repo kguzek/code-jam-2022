@@ -91,7 +91,7 @@ class ConnectionManager:
     async def disconnect(self, client: WebSocket):
         print("disconnect:")
 
-        self.remove_client_from_room(client)
+        await self.remove_client_from_room(client)
 
         if client in self.open_clients:
             self.open_clients.remove(client)
@@ -142,7 +142,7 @@ class ConnectionManager:
             )
 
     async def leave_room(self, client: WebSocket):
-        self.remove_client_from_room(client)
+        await self.remove_client_from_room(client)
 
         self.open_clients.append(client)
 
