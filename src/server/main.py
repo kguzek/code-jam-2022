@@ -13,8 +13,8 @@ DEBUG = True
 def debug(message: str):
     """This function prints the debug message if DEBUG is set to True."""
 
-    if not DEBUG:
-        print(debug)
+    if DEBUG:
+        print(message)
 
 
 app = FastAPI()
