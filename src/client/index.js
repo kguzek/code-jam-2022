@@ -1,5 +1,5 @@
 // Create websocket connection.
-const ws = new WebSocket("ws://online-tic-tac-toe-test.herokuapp.com/ws");
+const ws = new WebSocket("ws://localhost:8000/ws");
 
 // Declare global variables.
 let room_id;
