@@ -9,9 +9,9 @@ from json import loads
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from server.gameManager import GameManager
-from server.connectionManager import ConnectionManager
 
+from server.connectionManager import ConnectionManager
+from server.gameManager import GameManager
 
 app = FastAPI()
 app.mount("/client", StaticFiles(directory="client", html=True), name="client")
@@ -43,7 +43,7 @@ async def websocket_endpoint(client: WebSocket):
 
             print(f"    Received message: {message}")
 
-            match message["type"]:
+            match message["type"]:  # noqa: E999
                 # If message type is "get_open_rooms":
                 case "get_open_rooms":
                     open_rooms = await conn_manager.get_open_rooms()
