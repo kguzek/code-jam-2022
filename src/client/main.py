@@ -35,31 +35,23 @@ lbl_room_info = Label("Open rooms: 0", (0.5, 5 / 28), menu=Menu.settings)
 btn_join_room = Button("Join room", (0.5, 11 / 28), disabled=True, menu=Menu.settings)
 btn_create_room = Button("Create room", (0.5, 17 / 28), menu=Menu.settings)
 btn_retry_connection = Button("Retry connnection", (0.5, 9 / 14))
-lbl_current_info = Label("[ARBITRARY MESSAGE]", (0.5, 0.5))
+btn_disconnect = Button("Disconnect", (0.5, 9 / 14))
+lbl_current_info = Label("Connecting to server...", (0.5, 0.5))
 dropdown_room = Dropdown(
     "Select room",
     (0.5, 2 / 7),
     icon_font=FONT.reemkufiregular,
     menu=Menu.settings,
 )
-# ipt_server_url = TextInput(
-#     "Server URL",
-#     (0.5, 5 / 14),
-#     placeholder="E.g. localhost:8000",
-#     font=FONT.consolas,
-#     label_font=FONT.nimbus_sans_sm,
-#     detail_font=FONT.seguisym,
-# )
 # ENDREGION
 
 # REGION Register element events
-
-
 @btn_join_room.on_mouse("down")
 def join_room():
     backend.session.send_message(
         {"type": "connect", "room_id": dropdown_room.selected_option}
     )
+    lbl_current_info.label = "Connecting to room..."
     GameInfo.current_stage = GameStage.LOADING
 
 
@@ -70,24 +62,24 @@ def create_room():
     backend.session.send_message({"type": "create_room"})
 
 
-# TODO: implement textbox on_value_change hook
-# @ipt_server_url.on_select_change
-# def handle_value_change():
-#     if ipt_server_url.value or btn_join_room.disabled:
-#         return
-#     btn_join_room.toggle_disabled_state()
+@btn_disconnect.on_mouse("down")
+def disconnect_from_room():
+    backend.session.send_message(
+        {
+            "type": "disconnect",
+            "room_id": GameInfo.connected_room,
+            "sign": GameInfo.player_sign,
+        }
+    )
+    btn_disconnect.toggle_disabled_state()
+    GameInfo.current_stage = GameStage.JOIN_ROOM
+    if not btn_join_room.disabled:
+        btn_join_room.toggle_disabled_state()
+    GameInfo.connected_room = None
+    GameInfo.player_sign = None
+
 
 # ENDREGION
-
-
-def connect_to_room(data: dict) -> None:
-    room_id = data.get("room_id")
-    lbl_room_info.label = f"Connected to room {room_id}"
-    sign = data.get("sign")
-    GameInfo.current_stage = (
-        GameStage.GAME_IN_PROGRESS if sign == "o" else GameStage.WAITING_FOR_PLAYER
-    )
-
 
 # REGION Register websocket events
 @backend.session.on_server_message
@@ -97,7 +89,7 @@ def on_server_message(data: str | bytes) -> None:
     try:
         parsed = json.loads(data)
     except (TypeError, json.decoder.JSONDecodeError):
-        print("Invalid server message:", data)
+        debug("Invalid server message:", data)
         return
     else:
         data: dict = parsed
@@ -109,9 +101,21 @@ def on_server_message(data: str | bytes) -> None:
             open_rooms = data.get("open_rooms")
             options = tuple((room, f"Room {room}") for room in open_rooms)
             dropdown_room.set_options(options)
-            lbl_room_info.label = f"Open rooms: {len(open_rooms)}"
+            if GameInfo.current_stage == GameStage.JOIN_ROOM:
+                lbl_room_info.label = f"Open rooms: {len(open_rooms)}"
         case "connected":
-            connect_to_room(data)
+            room_id = data.get("room_id")
+            lbl_room_info.label = f"Connected to room #{room_id}"
+            sign = data.get("sign")
+            GameInfo.current_stage = (
+                GameStage.GAME_IN_PROGRESS
+                if sign == "o"
+                else GameStage.WAITING_FOR_PLAYER
+            )
+            GameInfo.player_sign = sign
+            GameInfo.connected_room = room_id
+            if btn_disconnect.disabled:
+                btn_disconnect.toggle_disabled_state()
         case "playercount":
             GameInfo.playercount = data.get("playercount")
         case "log":
@@ -154,8 +158,16 @@ def tick():
             visible_elems = [
                 lbl_current_info.assert_properties(label="or", font_colour=Colour.WHITE)
             ] + Menu.settings
-        case GameStage.WAITING_FOR_PLAYER | GameStage.GAME_IN_PROGRESS:
-            visible_elems = [lbl_room_info]
+        case GameStage.WAITING_FOR_PLAYER:
+            visible_elems = [
+                lbl_room_info,
+                btn_disconnect,
+                lbl_current_info.assert_properties(
+                    label="Waiting for opponent...", font_colour=Colour.WHITE
+                ),
+            ]
+        case GameStage.GAME_IN_PROGRESS:
+            visible_elems = [lbl_room_info, btn_disconnect]
         case GameStage.WEBSOCKET_ERROR:
             visible_elems = [
                 lbl_current_info.assert_properties(
@@ -165,9 +177,7 @@ def tick():
             ]
         case GameStage.LOADING:
             visible_elems = [
-                lbl_current_info.assert_properties(
-                    label=Message.LOADING, font_colour=Colour.WHITE
-                )
+                lbl_current_info.assert_properties(font_colour=Colour.WHITE)
             ]
         case _:
             visible_elems = []

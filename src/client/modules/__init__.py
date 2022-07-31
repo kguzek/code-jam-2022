@@ -85,12 +85,13 @@ class GameInfo:
     current_stage: GameStage = GameStage.LOADING
     ping = -1  # ms
     playercount = 0
+    connected_room = None
+    player_sign = None
 
 
 class Message(str):
     """Container for various messages that can be displayed to the client."""
 
-    LOADING = "Connecting to room..."
     CONNECTION_FAILED = "Error connecting to server!"
     CONNECTION_DROPPED = "Connection to server lost!"
     SERVER_ERROR = CONNECTION_FAILED
