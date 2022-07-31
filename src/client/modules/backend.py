@@ -10,6 +10,7 @@ from websockets import client as ws_client, exceptions as ws_exceptions
 
 # Local application imports
 from modules import GameInfo, GameStage, Message, FRAMERATE
+from modules.util import debug
 
 
 # Message timeout is half the frametime to allow for other
@@ -21,6 +22,7 @@ async def send_json(websocket: ws_client.WebSocketClientProtocol, data: dict):
     """Stringifies the JSON data and sends it to the server."""
     stringified = json.dumps(data)
     await websocket.send(stringified)
+    debug(f"CLIENT: Sent message '{data}'")
 
 
 class WebSocket:
@@ -30,6 +32,7 @@ class WebSocket:
         self._data_to_send: list[dict] = []
         self._message_handler: Callable[[str | bytes], None] = None
         self.on_handshake: Callable[..., None] | None = None
+        self.connected: bool = False
         super().__init__()
 
     def send_message(self, message: dict | Literal["PING"]) -> None:
@@ -84,15 +87,17 @@ def get_url(url: str, path: str, scheme: str = "ws") -> str:
 
 async def _on_websocket_handshake(websocket: ws_client.WebSocketClientProtocol) -> None:
     """Called when the websocket connection is established."""
+    session.connected = True
     GameInfo.current_stage = GameStage.JOIN_ROOM
     await asyncio.gather(
         send_json(websocket, {"type": "get_open_rooms"}),
-        send_json(websocket, {"type": "get_playercount"}),
+        # send_json(websocket, {"type": "get_playercount"}),
     )
 
 
 def _on_websocket_error(connection_dropped: bool):
     """Called if there is an error connecting to the websocket."""
+    session.connected = False
     GameInfo.current_stage = GameStage.WEBSOCKET_ERROR
     Message.SERVER_ERROR = (
         Message.CONNECTION_DROPPED if connection_dropped else Message.CONNECTION_FAILED
@@ -109,6 +114,7 @@ async def make_websocket_connection(url: str):
         async with ws_client.connect(url) as websocket:
             await _on_websocket_handshake(websocket)
             while GameInfo.current_stage != GameStage.ABORTED:
+                # print(f"{len(session._data_to_send)} messages to send")
                 await session.send_all_data(websocket)
                 try:
                     # Only wait a small amount of time for message from server

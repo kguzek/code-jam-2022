@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from time import time
 from typing import Sequence
 import pygame
 
@@ -31,7 +32,8 @@ CLOCK = pygame.time.Clock()
 
 
 # REGION Register menu elements
-lbl_room_info = Label("Open rooms: 0", (0.5, 5 / 28), menu=Menu.settings)
+lbl_room_info = Label("Open rooms: 0", (0.5, 1 / 224), menu=Menu.settings)
+lbl_player_sign = Label("[SIGN]", (0.5, 2 / 28), font=FONT.nimbus_sans_sm)
 btn_join_room = Button("Join room", (0.5, 11 / 28), disabled=True, menu=Menu.settings)
 btn_create_room = Button("Create room", (0.5, 17 / 28), menu=Menu.settings)
 btn_retry_connection = Button("Retry connnection", (0.5, 9 / 14))
@@ -49,7 +51,7 @@ dropdown_room = Dropdown(
 @btn_join_room.on_mouse("down")
 def join_room():
     backend.session.send_message(
-        {"type": "connect", "room_id": dropdown_room.selected_option}
+        {"type": "join_room", "room_id": dropdown_room.selected_option}
     )
     lbl_current_info.label = "Connecting to room..."
     GameInfo.current_stage = GameStage.LOADING
@@ -64,13 +66,7 @@ def create_room():
 
 @btn_disconnect.on_mouse("down")
 def disconnect_from_room():
-    backend.session.send_message(
-        {
-            "type": "disconnect",
-            "room_id": GameInfo.connected_room,
-            "sign": GameInfo.player_sign,
-        }
-    )
+    backend.session.send_message({"type": "leave_room"})
     btn_disconnect.toggle_disabled_state()
     GameInfo.current_stage = GameStage.JOIN_ROOM
     if not btn_join_room.disabled:
@@ -96,26 +92,34 @@ def on_server_message(data: str | bytes) -> None:
     data_type = data.get("type")
     if data_type != "log":
         debug(f"CLIENT: Received message '{data}'")
-    match data.get("type"):
+    match data_type:
+        case "create_room" | "join_room":
+            room_id = data.get("room_id")
+            lbl_room_info.label = f"Connected to room #{room_id}"
+            sign = data.get("sign")
+            GameInfo.current_stage = (
+                GameStage.GAME_IN_PROGRESS
+                if data_type == "join_room"
+                else GameStage.WAITING_FOR_PLAYER
+            )
+            GameInfo.player_sign = sign
+            lbl_player_sign.label = f"Your sign: {sign}"
+            GameInfo.connected_room = room_id
+            if btn_disconnect.disabled:
+                btn_disconnect.toggle_disabled_state()
+        case "leave_room":
+            pass
+        case "start_game":
+            GameInfo.current_stage = GameStage.GAME_IN_PROGRESS
+        case "player_disconnected":
+            GameInfo.current_stage = GameStage.WAITING_FOR_PLAYER
+            pass
         case "update_open_rooms":
             open_rooms = data.get("open_rooms")
             options = tuple((room, f"Room {room}") for room in open_rooms)
             dropdown_room.set_options(options)
             if GameInfo.current_stage == GameStage.JOIN_ROOM:
                 lbl_room_info.label = f"Open rooms: {len(open_rooms)}"
-        case "connected":
-            room_id = data.get("room_id")
-            lbl_room_info.label = f"Connected to room #{room_id}"
-            sign = data.get("sign")
-            GameInfo.current_stage = (
-                GameStage.GAME_IN_PROGRESS
-                if sign == "o"
-                else GameStage.WAITING_FOR_PLAYER
-            )
-            GameInfo.player_sign = sign
-            GameInfo.connected_room = room_id
-            if btn_disconnect.disabled:
-                btn_disconnect.toggle_disabled_state()
         case "playercount":
             GameInfo.playercount = data.get("playercount")
         case "log":
@@ -162,12 +166,13 @@ def tick():
             visible_elems = [
                 lbl_room_info,
                 btn_disconnect,
+                lbl_player_sign,
                 lbl_current_info.assert_properties(
                     label="Waiting for opponent...", font_colour=Colour.WHITE
                 ),
             ]
         case GameStage.GAME_IN_PROGRESS:
-            visible_elems = [lbl_room_info, btn_disconnect]
+            visible_elems = [lbl_room_info, btn_disconnect, lbl_player_sign]
         case GameStage.WEBSOCKET_ERROR:
             visible_elems = [
                 lbl_current_info.assert_properties(
@@ -212,10 +217,10 @@ def render(visible_elems: Sequence[BaseElement]):
     SCREEN.blit(fps_surface, (padding,) * 2)
 
     # Blit the playercount to the screen
-    message = f"Connected players: {GameInfo.playercount}"
-    players_surface = FONT.nimbus_sans.render(message, True, Colour.GREY7.value)
-    x_pos = SCREEN_DIMS[0] - players_surface.get_width() - padding
-    SCREEN.blit(players_surface, (x_pos, padding))
+    # message = f"Connected players: {GameInfo.playercount}"
+    # players_surface = FONT.nimbus_sans.render(message, True, Colour.GREY7.value)
+    # x_pos = SCREEN_DIMS[0] - players_surface.get_width() - padding
+    # SCREEN.blit(players_surface, (x_pos, padding))
 
     # Blit the server latency to the screen
     if GameInfo.ping == -1:
@@ -225,7 +230,8 @@ def render(visible_elems: Sequence[BaseElement]):
         message = f"{GameInfo.ping} ms"
         ping_colour = Colour.CYAN
     ping_surface = FONT.nimbus_sans.render(message, True, ping_colour.value)
-    x_pos -= ping_surface.get_width() + 7
+    # x_pos -= ping_surface.get_width() + 7
+    x_pos = SCREEN_DIMS[0] - ping_surface.get_width() - padding
     SCREEN.blit(ping_surface, (x_pos, padding))
 
     for elem in visible_elems:
@@ -252,7 +258,9 @@ try:
         CLOCK.tick(FRAMERATE)
 
         # Ping the server
-        backend.session.send_message("PING")
+        if backend.session.connected and time() - GameInfo.last_ping_check > 0.25:
+            GameInfo.last_ping_check = time()
+            backend.session.send_message("PING")
 
         # Handle Pygame events
         events = pygame.event.get()

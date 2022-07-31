@@ -2,6 +2,7 @@
 
 import asyncio
 from enum import Enum
+from time import time
 from typing import Callable
 from pygame.font import Font
 
@@ -81,9 +82,11 @@ class Axis(Enum):
 class GameInfo:
     """Information pertaining to the current game process."""
 
-    WEBSOCKET_URL = "localhost:8000"
+    # WEBSOCKET_URL = "localhost:8000"
+    WEBSOCKET_URL = "online-tic-tac-toe-test.herokuapp.com"
     current_stage: GameStage = GameStage.LOADING
     ping = -1  # ms
+    last_ping_check: float = time()
     playercount = 0
     connected_room = None
     player_sign = None

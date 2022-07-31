@@ -427,7 +427,6 @@ class TextInput(SelectableElement):
         pygame.mouse.set_cursor(*pygame.Cursor(pygame.SYSTEM_CURSOR_IBEAM))
 
 
-# TODO: Complete dropdown box + dropdown box option elements
 class Option(BaseElement):
     """Child element that is displayed for each possible option of a `Dropdown` element."""
 
@@ -508,14 +507,16 @@ class Dropdown(SelectableElement):
         dimensions = self.pos + self.dimensions
         # Element background
         bg_colour = (
-            Colour.LIGHTBLUE if self.is_hovered and not self.selected else Colour.GREY7
+            Colour.LIGHTBLUE
+            if self.is_hovered and not self.selected and not self.disabled
+            else Colour.GREY7
         )
         pygame.draw.rect(screen, bg_colour.value, dimensions)
         self.blit_text(screen, -self.dimensions[1])
         self.blit_detail(
             screen,
             self.icon,
-            Colour.GREY3 if self.is_hovered else Colour.GREY4,
+            Colour.GREY3 if self.is_hovered and not self.disabled else Colour.GREY4,
             Colour.BLACK,
         )
         super().draw(screen)
@@ -525,6 +526,9 @@ class Dropdown(SelectableElement):
 
     def set_options(self, options: Sequence[tuple[int, str]]) -> None:
         """Updates the dropdown element's options."""
+        # Toggle the disabled state if it is incorrect
+        if (len(options) > 0) == self.disabled:
+            self.toggle_disabled_state()
         if self.selected_option not in options:
             self.label = self.placeholder_label
         self.options = tuple(options)
