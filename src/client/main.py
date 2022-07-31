@@ -6,7 +6,6 @@ from time import time
 from typing import Sequence
 
 import pygame
-
 from modules import (
     FRAMERATE, SCREEN_DIMS, Colour, Font, GameInfo, GameStage, Message,
     backend, event_loop
@@ -46,9 +45,11 @@ dropdown_room = Dropdown(
 grid = Grid("Grid", (0.5, 0.5), disabled=True)
 # ENDREGION
 
+
 # REGION Register element events
 @btn_join_room.on_mouse("down")
 def join_room():
+    """Joins the selected room."""
     if dropdown_room.selected_option is None:
         debug("Dropdown selected option is None!")
         return
@@ -61,13 +62,18 @@ def join_room():
 
 @btn_create_room.on_mouse("up")
 def create_room():
-    """Sends a message to the server instructing it to create a new room, and transfer the client
-    to it."""
+    """
+    Creates a new room.
+
+    Sends a message to the server instructing it to create a new room,
+    and transfer the client to it.
+    """
     backend.session.send_message({"type": "create_room"})
 
 
 @btn_disconnect.on_mouse("down")
 def disconnect_from_room():
+    """Disconnects from room."""
     backend.session.send_message({"type": "leave_room"})
     btn_disconnect.toggle_disabled_state()
     GameInfo.current_stage = GameStage.JOIN_ROOM
@@ -82,6 +88,7 @@ def disconnect_from_room():
 # REGION Register websocket events
 @backend.session.on_server_message
 def on_server_message(data: str | bytes) -> None:
+    """Handler for incoming server messages."""
     if isinstance(data, bytes):
         data: str = bytes.decode()
     try:
@@ -182,6 +189,7 @@ def connect_to_server() -> None:
 
 @dropdown_room.on_selection_change
 def select_room() -> None:
+    """Updates gui to reflect the selected room."""
     if btn_join_room.disabled or dropdown_room.selected_option is None:
         btn_join_room.toggle_disabled_state()
 
@@ -190,8 +198,11 @@ def select_room() -> None:
 
 
 def tick():
-    """Performs logic on the game window. Returns a tuple containing a list of all visible elements
-    and a boolean indicating if the left mouse button was clicked this frame."""
+    """Performs logic on the game window.
+
+    Returns a tuple containing a list of all visible elements
+    and a boolean indicating if the left mouse button was clicked this frame.
+    """
     mouse_pos = pygame.mouse.get_pos()
     # Determine which buttons were pressed
     mouse_btns = pygame.mouse.get_pressed(num_buttons=3)
