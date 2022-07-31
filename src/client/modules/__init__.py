@@ -7,6 +7,11 @@ from typing import Callable
 
 from pygame.font import Font
 
+###################
+# Change url here #
+###################
+SERVER_URL = "161.97.167.128:8123"
+
 SCREEN_WIDTH = 640
 SCREEN_HEIGHT = 480
 SCREEN_DIMS = (SCREEN_WIDTH, SCREEN_HEIGHT)
@@ -84,7 +89,7 @@ class GameInfo:
     """Information pertaining to the current game process."""
 
     # WEBSOCKET_URL = "localhost:8000"
-    WEBSOCKET_URL = "161.97.167.128:8123"
+    WEBSOCKET_URL = SERVER_URL
     current_stage: GameStage = GameStage.LOADING
     ping = -1  # ms
     last_ping_check: float = time()
