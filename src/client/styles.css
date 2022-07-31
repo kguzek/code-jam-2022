@@ -1,0 +1,46 @@
+#root {
+  display: flex;
+  justify-content: center;
+}
+
+main {
+  width: 40%;
+  border: 2px solid black;
+  background-color: #fafafa;
+}
+
+.container {
+  padding: 0px 5px 5px;
+}
+
+form {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+form div {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+}
+
+h1 {
+  display: flex;
+  justify-content: center;
+  background-color: #dfdfdf;
+  margin-top: 0px;
+  padding: 10px;
+  border-bottom: 1px solid black;
+}
+
+html {
+  background-color: #2f2f2f;
+  font-family: Arial, Helvetica, sans-serif;
+}

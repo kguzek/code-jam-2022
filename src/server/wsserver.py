@@ -1,8 +1,9 @@
 """Entry point for the server application."""
 
-from asyncio import gather
 import re
+from asyncio import gather
 from enum import Enum
+from typing import List
 from uuid import uuid4
 
 from fastapi import WebSocket
@@ -11,12 +12,14 @@ from fastapi import WebSocket
 class EventType(Enum):
     """Enum containing all message event types."""
 
+    CREATE_ROOM = "create_room"
     CONNECT = "new_connection"
     TRANSFER = "transferred"
     DISCONNECT = "client_disconnected"
+    GET_ROOMS = "get_rooms"
 
 
-class Message:  # pylint:disable=too-few-public-methods
+class Message:
     """Message class to be used for server-client communication."""
 
     def __init__(self, msg_type: EventType, **kwargs):
@@ -57,6 +60,16 @@ class Client:
         else:
             self.name = "Anonymous"
 
+    async def debug(self, message):
+        """Sends a debug message to the client."""
+
+        await self.socket.send_json(
+            {
+                "type": "debug",
+                "message": message,
+            }
+        )
+
     async def send_message(self, message: Message):
         """
         Sends a message to the client.
@@ -65,6 +78,14 @@ class Client:
             message: The Message object to send.
         """
         await self.socket.send_json(message.serialised)
+
+    async def accept(self) -> None:
+        """Accepts the socket connection"""
+        await self.socket.accept()
+
+    async def recieve_data(self) -> dict:
+        """Recieves data send by the client"""
+        return await self.socket.receive_json()
 
     async def close(self) -> None:
         """Closes the conection to the server."""
@@ -119,7 +140,7 @@ class ConnectionManager:
         """Connects the websocket to the server."""
         client = Client(websocket, None)
         print(websocket.query_params)
-        await client.socket.accept()
+        await client.accept()
         self.connections.append(client)
         return client
 
@@ -136,6 +157,7 @@ class ConnectionManager:
     async def disconnect(self, client: Client):
         """Disconnects the client from the server."""
         await client.close()
+
         self.connections.remove(client)
         await self.remove_client_from_room(client)
 
@@ -160,6 +182,10 @@ class ConnectionManager:
             if room.room_id == room_id:
                 return room
         return Room(room_id)
+
+    def get_rooms(self) -> List[Room]:
+        """Get all rooms with 1 person connected to it."""
+        return [room.room_id for room in self.rooms if len(room.clients) == 1]
 
     def __str__(self) -> str:
         output = "Rooms:\n"

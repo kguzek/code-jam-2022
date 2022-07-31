@@ -8,6 +8,9 @@ venv
 .env
 env
 
+# Linux virtual enviroment for developing
+lvenv
+
 # Unittest reports
 .coverage*
 
