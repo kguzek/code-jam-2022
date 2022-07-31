@@ -88,8 +88,23 @@ class ConnectionManager:
 
         return (room["x"], room["o"])
 
-    async def leave_room(self, client: WebSocket, disconnected: bool = False):
+    async def disconnect(self, client: WebSocket):
+        print("disconnect:")
+
+        self.remove_client_from_room(client)
+
+        if client in self.open_clients:
+            self.open_clients.remove(client)
+
+            print(f"\t Client removed from open_clients")
+
+        print(f"\t Client {client} disconnected")
+        print(f"\t open_clients: {self.open_clients}")
+
+    async def remove_client_from_room(self, client: WebSocket):
         """This function removes the player from the room."""
+
+        print(f"remove_client_from_room:")
 
         # Find room_id and sign of the player.
         for room_id, room in self.rooms.items():
@@ -102,10 +117,13 @@ class ConnectionManager:
                 sign = "o"
                 break
         else:
+            print(f"\t Client {client} is not in the room")
+
             return
 
         # Remove the player from the room.
         self.rooms[room_id][sign] = None
+        print(f"\t Client {client} removed from the room")
 
         # Delete the room if it is empty and update open rooms.
         room = self.rooms[room_id]
@@ -123,13 +141,8 @@ class ConnectionManager:
                 }
             )
 
-        if disconnected:
-            print(f"Client {client} is disconnected")
-
-            if client in self.open_clients:
-                self.open_clients.remove(client)
-
-            return
+    async def leave_room(self, client: WebSocket):
+        self.remove_client_from_room(client)
 
         self.open_clients.append(client)
 
