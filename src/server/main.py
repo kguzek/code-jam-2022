@@ -1,5 +1,11 @@
 """Main program of the server."""
 
+# TODO:
+# - draw
+# - rounds
+# -
+
+from json import loads
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -30,15 +36,17 @@ async def websocket_endpoint(client: WebSocket):
     # Listens to all messages from client.
     try:
         while True:
-            message = await client.receive_json()
+            message = await client.receive_text()
+            message = loads(message)
+
             print(f"Received message: {message}")
 
             match message["type"]:
                 # If message type is "get_open_rooms":
-                case "update_open_rooms":
+                case "get_open_rooms":
                     open_rooms = await conn_manager.get_open_rooms()
 
-                    print(f"Received update_open_rooms request")
+                    print(f"Received get_open_rooms request")
                     print(f"open_rooms: {open_rooms}")
                     print(f"open_clients: {conn_manager.open_clients}")
 

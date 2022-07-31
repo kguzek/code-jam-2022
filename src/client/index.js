@@ -6,25 +6,24 @@ const WS_HOST =
 const ws = new WebSocket(`ws://${WS_HOST}/ws`);
 
 // Declare global variables.
-let room_id;
-let sign;
+let current_room_id;
+let your_sign;
 
 // This function will be called after websocket connection is accepted by server.
 ws.onopen = () => {
-  // Send request to get list of all open rooms.
+  // Send message with type "get_open_rooms" to get list of all open rooms.
   get_open_rooms();
 };
 
+// This function processes all incoming messages from server depending on message type.
 ws.onmessage = (message) => {
-  // This function processes all incoming messages from server depending on message type.
-
   // Get message data.
   const data = JSON.parse(message.data);
 
   switch (data.type) {
-    // If server has sent a list of open rooms.
+    // If server sent "update_open_rooms" message.
     case "update_open_rooms":
-      // Update open rooms in ui.
+      // Update list of open rooms in ui.
       update_open_rooms(data.open_rooms);
 
       break;
@@ -32,22 +31,24 @@ ws.onmessage = (message) => {
     // If server successfuly created a room.
     case "create_room":
       // Set global variables.
-      room_id = data.room_id;
-      sign = data.sign;
+      current_room_id = data.room_id;
+      your_sign = data.sign;
 
-      // Update ui to in-room state and set info.
-      go_to_room();
+      set_ui("in-room");
+
+      set_current_room_id(current_room_id);
+      set_your_sign(your_sign);
       set_info("Waiting for second player...");
 
       break;
 
     case "join_room":
       // Set global variables.
-      room_id = data.room_id;
-      sign = data.sign;
+      current_room_id = data.room_id;
+      your_sign = data.sign;
 
       // Update ui to in-room state and set info.
-      go_to_room();
+      set_ui("in-room");
 
       break;
 
@@ -95,7 +96,7 @@ ws.onmessage = (message) => {
     case "win":
       let cells_color;
 
-      if (data.sign === sign) {
+      if (data.sign === your_sign) {
         set_info("You won!");
         cells_color = "green";
       } else {
@@ -121,7 +122,7 @@ function get_open_rooms() {
   // This function sends message with type "update_open_rooms" to get list of all open rooms.
 
   send_message({
-    type: "update_open_rooms",
+    type: "get_open_rooms",
   });
 }
 
@@ -163,16 +164,8 @@ function join_room() {
   }
 }
 
-function go_to_room() {
-  // This function sets the client ui to in-room state.
-
-  // Set ui state.
-  document.body.className = "in-room";
-
-  // Update ui.
-  set_current_room_id(room_id);
-  set_your_sign(sign);
-  set_info("Waiting for second player...");
+function set_ui(ui_state) {
+  document.body.className = ui_state;
 }
 
 function leave_room() {
@@ -184,8 +177,8 @@ function leave_room() {
 }
 
 function reset_room_info() {
-  room_id = null;
-  sign = null;
+  current_room_id = null;
+  your_sign = null;
 }
 
 function set_room_id_input(room_id) {
@@ -236,14 +229,14 @@ function move(cell) {
   if (cell_el.innerText == "*") {
     console.log({
       type: "move",
-      room_id: room_id,
-      sign: sign,
+      room_id: current_room_id,
+      sign: your_sign,
       cell: cell,
     });
     send_message({
       type: "move",
-      room_id: room_id,
-      sign: sign,
+      room_id: current_room_id,
+      sign: your_sign,
       cell: cell,
     });
   }
