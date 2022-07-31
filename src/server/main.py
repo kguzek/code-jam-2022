@@ -10,11 +10,12 @@ from server.connectionManager import ConnectionManager
 DEBUG = True
 
 
-def debug(message):
+async def debug(websocket: WebSocket, message):
     """This function prints the debug message if DEBUG is set to True."""
 
-    if DEBUG:
-        print(message)
+    if not DEBUG:
+        return
+    await websocket.send_json({"type": "log", "body": message})
 
 
 app = FastAPI()
@@ -26,7 +27,7 @@ game_manager = GameManager()
 
 @app.get("/")
 async def root():
-    """This function redirects to the `/client` subpath containing the client static page content."""
+    """This function redirects to the `/client` subpath containing the client page content."""
     return RedirectResponse(url="/client")
 
 
