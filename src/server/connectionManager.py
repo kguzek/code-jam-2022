@@ -124,6 +124,8 @@ class ConnectionManager:
             )
 
         if client.client_state == WebSocketState.DISCONNECTED:
+            print(f"Client {client} is disconnected")
+
             return
 
         self.open_clients.append(client)

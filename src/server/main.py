@@ -100,6 +100,7 @@ async def websocket_endpoint(client: WebSocket):
 
     # If client has disconnected:
     except WebSocketDisconnect:
-        print("Client disconnected")
 
         await conn_manager.leave_room(client)
+
+        print(f"open_clients: {conn_manager.open_clients}")
