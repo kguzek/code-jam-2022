@@ -10,7 +10,7 @@ from server.connectionManager import ConnectionManager
 DEBUG = True
 
 
-async def debug(message: str):
+def debug(message: str):
     """This function prints the debug message if DEBUG is set to True."""
 
     if not DEBUG:
