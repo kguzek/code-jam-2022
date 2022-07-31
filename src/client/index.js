@@ -129,8 +129,15 @@ ws.onmessage = (message) => {
         cells_color = "red";
       }
 
-      for (cellId of data.cells) {
-        markCell(cellId, cells_color);
+      for (cell of data.cells) {
+        markCell(cell, cells_color);
+      }
+
+      break;
+
+    case "draw_board":
+      for (let cell = 0; cell <= 8; cell++) {
+        markCell(cell, "grey");
       }
 
       break;

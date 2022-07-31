@@ -5,6 +5,6 @@ git push heroku simple-server:main
 
 
 heroku logs --app online-tic-tac-toe-test --tail
- 
+
 pkill gunicorn
 gunicorn -w 1 -k uvicorn.workers.UvicornWorker --chdir src server.main:app

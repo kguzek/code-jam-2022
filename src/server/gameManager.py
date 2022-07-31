@@ -146,4 +146,6 @@ class GameManager:
         return (None, None)
 
     def check_draw_round(self, board):
-        return False
+        print("draw", board)
+
+        return all([row.count("*") == 3 for row in board])
