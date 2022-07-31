@@ -4,7 +4,6 @@ from time import time
 from typing import Callable, Coroutine, Literal, Sequence
 
 import pygame
-
 from modules import SCREEN_DIMS, Axis, Colour, GameInfo, backend, util
 from modules.util import debug
 
@@ -64,6 +63,7 @@ class BaseElement:
         Menu.all_elements.append(self)
 
     def render_text(self) -> None:
+        """Renders text"""
         self.text = self.font.render(self.label, True, self.font_colour.value)
         self.text_width = self.text.get_width()
         self.text_height = self.text.get_height()
@@ -81,9 +81,13 @@ class BaseElement:
     def draw(
         self, screen: pygame.Surface, exclude_top: bool = False, width: int = 2
     ) -> None:
-        """Blits the element to the game window. For `BaseElement`, this means blitting a black
+        """
+        Draws to the screen.
+
+        Blits the element to the game window. For `BaseElement`, this means blitting a black
         rectangular outline. This method is meant to be overriden by subclasses, but calls to the
-        it may still be made."""
+        it may still be made.
+        """
         # Element outline
         if exclude_top:
             top_left = self.pos
@@ -104,7 +108,10 @@ class BaseElement:
             )
 
     def get_coordinate(self, axis: Axis, fraction: float):
-        """Gets the coordinate if we want the element to be the given fraction away from the
+        """
+        Get's coordinates
+
+        Gets the coordinate if we want the element to be the given fraction away from the
         screen's edge.
         """
         if not 0 <= fraction <= 1:
@@ -138,8 +145,10 @@ class BaseElement:
         self, mouse_pos: tuple[int, int], mouse_btns: tuple[bool, bool, bool]
     ) -> bool:
         """Checks if the mouse position impedes on the element boundaries.
+
         Returns a boolean indicating if the mouse is currently hovering over the element.
-        Responsible for emitting the `on_hover_change()` and `on_mouse()` listener events."""
+        Responsible for emitting the `on_hover_change()` and `on_mouse()` listener events.
+        """
         is_hovered = self.check_collision(mouse_pos)
         if is_hovered != self.is_hovered:
             self.on_hover_change(is_hovered)
@@ -166,6 +175,7 @@ class BaseElement:
         self.is_hovered = is_hovered
 
     def toggle_disabled_state(self) -> None:
+        """Toggles the disabled state of the element."""
         self.disabled = not self.disabled
         # debug("Set", self.label, "to", "disabled" if self.disabled else "enabled")
         cursor = (
@@ -218,6 +228,7 @@ class SelectableElement(BaseElement):
         colour: Colour | None = None,
         outline_colour: Colour | None = None,
     ) -> None:
+        """Blits detail."""
         dims = (self.dimensions[1],) * 2
         surf = pygame.Surface(dims, pygame.SRCALPHA, 32)
         if colour:
@@ -239,6 +250,7 @@ class SelectableElement(BaseElement):
     def check_click(
         self, mouse_pos: tuple[int, int], mouse_btns: tuple[bool, bool, bool]
     ) -> bool:
+        """Checks the click"""
         super().check_click(mouse_pos, mouse_btns)
         # Deselect if clicked out of region
         if mouse_btns[0] and not self.is_hovered and self.selected:
@@ -275,8 +287,12 @@ class Label(BaseElement):
         self.blit_text(screen)
 
     def assert_properties(self, **values):
-        """Sets all the given properties to the specified values, if they are not already so.
-        Returns the object again, allowing for method chaining."""
+        """
+        Asserts that the given properties are equal to the given values.
+
+        Sets all the given properties to the specified values, if they are not already so.
+        Returns the object again, allowing for method chaining.
+        """
         for key, value in values.items():
             if self.__getattribute__(key) == value:
                 continue
@@ -418,6 +434,7 @@ class TextInput(SelectableElement):
         return super()._on_mouse_down()
 
     def keydown(self, event: pygame.event.Event) -> None:
+        """Handles keydown events."""
         if event.key == 8:
             # Backspace
             if event.mod & pygame.KMOD_LCTRL:
@@ -433,6 +450,7 @@ class TextInput(SelectableElement):
         self.value += event.unicode
 
     def on_hover_change(self, is_hovered: bool) -> None:
+        """Handles hover change events."""
         super().on_hover_change(is_hovered)
         if not is_hovered or self.disabled:
             return
@@ -569,16 +587,17 @@ class Grid(BaseElement):
 
     def reset(self):
         """Called whenever the board has to be cleared."""
-
         GameInfo.board = [["*"] * 3] * 3
         self.child_cells = list(self._create_cell_elements())
 
     def draw(self, screen: pygame.Surface) -> None:
+        """Draws on the screen."""
         for elem in self.child_cells:
             elem.draw(screen)
         return super().draw(screen)
 
     def toggle_disabled_state(self) -> None:
+        """Toggles disabled state."""
         super().toggle_disabled_state()
         for elem in self.child_cells:
             elem.toggle_disabled_state()
@@ -619,6 +638,7 @@ class GridCell(BaseElement):
         super().__init__("*", pos, container=[], dims=dims, **kwargs)
 
     def draw(self, screen: pygame.Surface) -> None:
+        """Draws on the screen."""
         colour = (
             Colour.GREY3
             if self.disabled
