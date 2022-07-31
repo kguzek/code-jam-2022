@@ -1,5 +1,7 @@
 // Create websocket connection.
-const ws = new WebSocket("ws://localhost:8000/ws");
+const WS_HOST = document.domain;
+
+const ws = new WebSocket(`ws://${WS_HOST}/ws`);
 
 // Declare global variables.
 let room_id;
