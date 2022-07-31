@@ -1,6 +1,9 @@
 // Create websocket connection.
-const WS_HOST = document.domain;
-const ws = new WebSocket(`ws://${WS_HOST}:8000/ws`);
+const WS_HOST =
+  document.domain === "127.0.0.1"
+    ? "127.0.0.1:8000"
+    : "online-tic-tac-toe-test.herokuapp.com";
+const ws = new WebSocket(`ws://${WS_HOST}/ws`);
 
 // Declare global variables.
 let room_id;
