@@ -95,8 +95,8 @@ class GameManager:
 
         d_2 = [board[i][2 - i] for i in range(3)]
         if len(set(d_2)) == 1 and "*" not in d_2:
-            print(f"{d_2[0]} won:", (0, 4, 6))
-            return d_2[0], (0, 4, 6)
+            print(f"{d_2[0]} won:", (2, 4, 6))
+            return d_2[0], (2, 4, 6)
 
         # Otherwise, return False
         return False
