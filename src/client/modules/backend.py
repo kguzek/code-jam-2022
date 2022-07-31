@@ -6,12 +6,13 @@ import json
 import threading
 from time import time
 from typing import Callable, Coroutine, Literal
-from websockets import client as ws_client, exceptions as ws_exceptions
+
+from websockets import client as ws_client
+from websockets import exceptions as ws_exceptions
 
 # Local application imports
-from modules import GameInfo, GameStage, Message, FRAMERATE
+from modules import FRAMERATE, GameInfo, GameStage, Message
 from modules.util import debug
-
 
 # Message timeout is half the frametime to allow for other
 # game process functions in the space of one game tick

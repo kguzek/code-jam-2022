@@ -4,20 +4,14 @@ import asyncio
 import json
 from time import time
 from typing import Sequence
+
 import pygame
 
 from modules import (
-    backend,
-    SCREEN_DIMS,
-    FRAMERATE,
-    event_loop,
-    Colour,
-    Font,
-    GameStage,
-    GameInfo,
-    Message,
+    FRAMERATE, SCREEN_DIMS, Colour, Font, GameInfo, GameStage, Message,
+    backend, event_loop
 )
-from modules.gui import Label, BaseElement, Button, Menu, Dropdown, Grid
+from modules.gui import BaseElement, Button, Dropdown, Grid, Label, Menu
 from modules.util import debug
 
 pygame.init()
@@ -100,7 +94,7 @@ def on_server_message(data: str | bytes) -> None:
     data_type = data.get("type")
     if data_type != "log":
         debug(f"CLIENT: Received message '{data}'")
-    match data_type:
+    match data_type:  # noqa: E999
         case "create_room" | "join_room":
             room_id = data.get("room_id")
             lbl_room_info.label = f"Connected to room #{room_id}"

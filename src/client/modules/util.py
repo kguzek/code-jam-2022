@@ -3,7 +3,7 @@
 
 from typing import Callable, Coroutine, Iterable
 
-from modules import event_loop, DEBUG_MODE
+from modules import DEBUG_MODE, event_loop
 
 
 def call_callbacks(

@@ -2,8 +2,10 @@
 
 from time import time
 from typing import Callable, Coroutine, Literal, Sequence
+
 import pygame
-from modules import Colour, Axis, SCREEN_DIMS, util, GameInfo, backend
+
+from modules import SCREEN_DIMS, Axis, Colour, GameInfo, backend, util
 from modules.util import debug
 
 DEFAULT_DIMENSIONS = (300, 50)
@@ -18,7 +20,7 @@ class BaseElement:
         self,
         label: str,
         pos: tuple[float, float],
-        /,
+        /,  # noqa: E225
         *,
         font: pygame.font.Font = None,
         font_colour: Colour = Colour.WHITE,
@@ -313,7 +315,7 @@ class TextInput(SelectableElement):
         self,
         label: str,
         pos: tuple[float, float],
-        /,
+        /,  # noqa: E225
         *,
         placeholder: str,
         font: pygame.font.Font,
@@ -467,7 +469,7 @@ class Dropdown(SelectableElement):
         self,
         label: str,
         pos: tuple[float, float],
-        /,
+        /,  # noqa: E225
         *,
         icon_font: pygame.font.Font,
         options: Sequence[tuple[int, str]] = [],
@@ -605,7 +607,7 @@ class GridCell(BaseElement):
     def __init__(
         self,
         pos: tuple[float, float],
-        /,
+        /,  # noqa: E225
         *,
         dims: tuple[int, int],
         row: int,
