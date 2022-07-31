@@ -10,12 +10,11 @@ from server.connectionManager import ConnectionManager
 DEBUG = True
 
 
-async def debug(websocket: WebSocket, message):
+async def debug(message: str):
     """This function prints the debug message if DEBUG is set to True."""
 
     if not DEBUG:
-        return
-    await websocket.send_json({"type": "log", "body": message})
+        print(debug)
 
 
 app = FastAPI()
