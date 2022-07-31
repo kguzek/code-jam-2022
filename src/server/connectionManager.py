@@ -8,7 +8,6 @@ class ConnectionManager:
 
     def __init__(self):
         """This function sets variables of ConnectionManager object to default values."""
-
         # List of all existing rooms.
         self.rooms = {}
 
@@ -27,9 +26,12 @@ class ConnectionManager:
         print(f"    open_clients: {self.open_clients}")
 
     async def create_room(self, client: WebSocket):
-        """This function creates room with one connected player and sends message
-        with type "connected" to client that created it."""
+        """
+        Creates the room
 
+        This function creates room with one connected player and
+        sends message with type "connected" to client that created it.
+        """
         # Create room with one player.
         room_id = randint(0, 10**5)
         self.rooms[room_id] = {
@@ -47,9 +49,12 @@ class ConnectionManager:
         )
 
     async def join_room(self, client: WebSocket, room_id: int):
-        """This function connects client to room and removes it from list of open clients.
-        Then, starts game and sends message with type "update_open_rooms" to all open clients."""
+        """
+        Joins the websocket into a room
 
+        This function connects client to room and removes it from list of open clients.
+        Then, starts game and sends message with type "update_open_rooms" to all open clients.
+        """
         if room_id not in self.rooms.keys():
             await client.send_json(
                 {
@@ -90,6 +95,7 @@ class ConnectionManager:
         return (room["x"], room["o"])
 
     async def disconnect(self, client: WebSocket):
+        """Disconnects the websocket"""
         print("disconnect:")
 
         await self.remove_client_from_room(client)
@@ -97,7 +103,7 @@ class ConnectionManager:
         if client in self.open_clients:
             self.open_clients.remove(client)
 
-            print(f"     Client removed from open_clients")
+            print("     Client removed from open_clients")
 
         print(f"    Client {client} disconnected")
         print(f"    open_clients: {self.open_clients}")
@@ -105,8 +111,7 @@ class ConnectionManager:
 
     async def remove_client_from_room(self, client: WebSocket):
         """This function removes the player from the room."""
-
-        print(f"remove_client_from_room:")
+        print("remove_client_from_room:")
 
         # Find room_id and sign of the player.
         for room_id, room in self.rooms.items():
@@ -144,6 +149,7 @@ class ConnectionManager:
             )
 
     async def leave_room(self, client: WebSocket):
+        """Makes the websocket leave the room"""
         await self.remove_client_from_room(client)
 
         self.open_clients.append(client)
@@ -158,7 +164,6 @@ class ConnectionManager:
 
     async def get_open_rooms(self):
         """This function returns list of all rooms that have only one connected player."""
-
         print("conn_manager.get_open_rooms:")
 
         open_rooms = [
@@ -173,10 +178,13 @@ class ConnectionManager:
         return open_rooms
 
     async def update_open_rooms(self):
-        """This function sends information about new rooms to clients
-        that are not connected to room."""
+        """
+        Updates open rooms
 
-        print(f"update_open_rooms:")
+        This function sends information about new rooms to clients
+        that are not connected to room.
+        """
+        print("update_open_rooms:")
 
         open_rooms = await self.get_open_rooms()
 

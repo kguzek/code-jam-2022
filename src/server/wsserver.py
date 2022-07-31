@@ -62,7 +62,6 @@ class Client:
 
     async def debug(self, message):
         """Sends a debug message to the client."""
-
         await self.socket.send_json(
             {
                 "type": "debug",
