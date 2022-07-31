@@ -27,6 +27,13 @@ class GameManager:
             },
         )
 
+    def reset_board(self, room_id: int):
+        self.games[room_id]["board"] = [
+            ["*", "*", "*"],
+            ["*", "*", "*"],
+            ["*", "*", "*"],
+        ]
+
     async def start_game(self, room_id: int, player_x: WebSocket, player_o: WebSocket):
         # Create game.
         self.games[room_id] = {
@@ -39,7 +46,7 @@ class GameManager:
             ],
             "x_wins": 0,
             "o_wins": 0,
-            "played_rounds": 0,
+            "played_rounds": 1,
         }
 
         await self.start_round(self.games[room_id], 1)
@@ -51,7 +58,7 @@ class GameManager:
         game = self.games[room_id]
         board = game["board"]
 
-        # Update board.
+        # Update board dict.
         cell_row = cell // 3
         cell_col = cell % 3
         board[cell_row][cell_col] = sign
@@ -65,22 +72,49 @@ class GameManager:
             },
         )
 
-        # Check for win.
-        win = self.check_win(board)
+        # Check win_board.
+        winner, win_cells = self.check_win_round(board)
 
-        if win:
+        if (winner, win_cells) != (None, None):
+            # Update winner score.
+            game[winner + "_wins"] += 1
+
+            # Send "win_round" message.
             await self.send_both(
                 game,
                 {
-                    "type": "win",
-                    "sign": win[0],
-                    "cells": win[1],
+                    "type": "win_round",
+                    "sign": winner,
+                    "cells": win_cells,
+                    "x_wins": game["x_wins"],
+                    "o_wins": game["o_wins"],
                 },
             )
 
-        # Check for draw.
+            game["played_rounds"] += 1
+            await self.start_round(game, game["played_rounds"])
+            self.reset_board(room_id)
 
-    def check_win(self, board: list):
+        # Check for draw_round.
+        if self.check_draw_round(board):
+            game["x_wins"] += 1
+            game["o_wins"] += 1
+            await self.send_both(
+                game,
+                {
+                    "type": "draw_round",
+                    "x_wins": game["x_wins"],
+                    "o_wins": game["o_wins"],
+                },
+            )
+
+            game["played_rounds"] += 1
+            await self.start_round(game, game["played_rounds"])
+            self.reset_board(room_id)
+
+        # Check is game is over
+
+    def check_win_round(self, board: list):
         """This methon checks if the current player is won."""
         print(board)
 
@@ -109,4 +143,7 @@ class GameManager:
             return d_2[0], (2, 4, 6)
 
         # Otherwise, return False
+        return (None, None)
+
+    def check_draw_round(self, board):
         return False

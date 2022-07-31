@@ -55,7 +55,9 @@ ws.onmessage = (message) => {
       set_ui_state("in-room");
       set_current_room_id(current_room_id);
       set_your_sign(your_sign);
-      set_info("");
+
+      show_game_info();
+      show_board();
 
       break;
 
@@ -66,9 +68,10 @@ ws.onmessage = (message) => {
       break;
 
     case "start_countdown":
-      is_allowed_to_move = false;
+      show_board();
+      reset_board();
 
-      show_current_round();
+      is_allowed_to_move = false;
 
       set_current_round(data.round);
 
@@ -88,8 +91,6 @@ ws.onmessage = (message) => {
         set_info("GO!");
       }, 3000);
 
-      show_board();
-
       break;
 
     case "leave_room":
@@ -107,16 +108,15 @@ ws.onmessage = (message) => {
 
     case "player_disconnected":
       set_info("Your opponent has disconnected.");
-      hide_board();
 
-      reset_board();
       hide_board();
+      reset_board();
+      hide_game_info();
 
       break;
-    case "update_board":
-      const board = data.board;
 
-      set_board(board);
+    case "update_board":
+      set_board(data.board);
 
       break;
 
@@ -130,8 +130,6 @@ ws.onmessage = (message) => {
         set_info("You lose(");
         cells_color = "red";
       }
-
-      console.log(data);
 
       for (cellId of data.cells) {
         markCell(cellId, cells_color);

@@ -99,8 +99,9 @@ class ConnectionManager:
 
             print(f"     Client removed from open_clients")
 
-        print(f"     Client {client} disconnected")
-        print(f"     open_clients: {self.open_clients}")
+        print(f"    Client {client} disconnected")
+        print(f"    open_clients: {self.open_clients}")
+        print(f"    rooms: {self.rooms}")
 
     async def remove_client_from_room(self, client: WebSocket):
         """This function removes the player from the room."""

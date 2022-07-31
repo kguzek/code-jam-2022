@@ -91,3 +91,11 @@ function hide_current_round() {
   const current_round_el = document.getElementById("current_round");
   current_round_el.style.display = "none";
 }
+
+function show_game_info() {
+  show_current_round();
+}
+
+function hide_game_info() {
+  hide_current_round();
+}
