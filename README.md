@@ -4,18 +4,17 @@
 
 <i>Speed Tac Toe</i> is a fast-paced, tic tac toe-inspired game. In this version, you and another person battle it out in a game of tic tac toe, but with a unique twist: instead of taking turns, you can take your turn whenever you want!
 
+<!-- omit in toc -->
 ### Table of contents
 - [Speed Tac Toe](#speed-tac-toe)
-    - [Table of contents](#table-of-contents)
-  - [Technical info](#technical-info)
+  - [Technical information](#technical-information)
   - [How to start the game](#how-to-start-the-game)
     - [Linux/Unix-based operating systems:](#linuxunix-based-operating-systems)
     - [Windows:](#windows)
-  - [How to host](#how-to-host)
+  - [How to host your own server](#how-to-host-your-own-server)
     - [Using Docker](#using-docker)
     - [Manual install](#manual-install)
-    - [Thank you for reading!](#thank-you-for-reading)
-## Technical info
+## Technical information
 Speed Tac Toe was designed and tested on Python version `3.10.5`. As such, this is the only supported and recommended release of CPython to use with the game. It makes use of many new Python `3.10` features, such as `match-case` statements, union type annotations, and more.
 
 ## How to start the game
@@ -37,7 +36,7 @@ chmod +x client.sh
 ./client.bat
 ```
 
-## How to host
+## How to host your own server
 If you want to host the server on your local machine instead of relying on the remote server automatically provided, you must clone the repository, install the server dependencies and use an ASGI web server implementation to host the server, such as uvicorn.
 ### Using Docker
 The easiest way to do this is by using the included Dockerfile (note: this means that Docker must be installed on your system). To start the server in a Docker container, run the following:
@@ -69,4 +68,5 @@ Then, you must configure the client application to use the local server instead 
 ```
 Change `161.97.167.128:8123` to `localhost:8000` if you're running the server on the same machine, otherwise use the IP address of the server along with the port number you specified when running uvicorn (in the example shown, it was `8000`).
 
+<!-- omit in toc -->
 ### Thank you for reading!
