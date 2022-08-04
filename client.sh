@@ -1,2 +1,2 @@
-python3 -m pip install -r src/requirements.txt
-python3 src/client/main.py
+python3.10 -m pip install -r src/requirements.txt
+python3.10 src/client/main.py
